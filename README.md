@@ -6,12 +6,12 @@ Cartridge carousels for GBA, GB and GBC, with label artwork, cartridge colours, 
 
 ## Install
 
-**Offline v1.1 test build.** Use the ZIP supplied for your cartridge:
+Download **v1.1** for your cartridge:
 
 | Cartridge | Download |
 | --- | --- |
-| Original Omega | `slot-advance-v1.1-omega.zip` |
-| Original Omega DE, Rev A / Rev B | `slot-advance-v1.1-omega-de.zip` |
+| Original Omega | [Download](https://github.com/FrankieT19/slot-advance/releases/download/v1.1/slot-advance-v1.1-omega.zip) |
+| Original Omega DE, Rev A / Rev B | [Download](https://github.com/FrankieT19/slot-advance/releases/download/v1.1/slot-advance-v1.1-omega-de.zip) |
 
 The newer DE B / EZODE-B is not supported.
 
@@ -25,6 +25,8 @@ Keep the supplied kernel filename: `ezkernel.bin` for Omega, `ezkernelnew.bin` f
 ## Artwork
 
 Scrape labels and choose cartridge colours with [slot. Cart Studio](https://studio.slot-cfw.fyi/). Then run the included **Label Converter.exe** on your PC, select your SD card and convert.
+
+You can leave the SD card connected after Cart Studio, even when it tells you to eject it. Run the converter next.
 
 ## Your name
 
@@ -40,7 +42,7 @@ Edit the included **`USERNAME.TXT`** on your card. Its first line displays up to
 | B | GBA boot options / return |
 | Start | Settings |
 
-Open **Settings → Help** for all controls. For **GBA Addon** games, hold **Select for three seconds** to reset, or press **Start + Select** for the in-game menu. Enable **Select hold** and **Save states** in Settings to use these features.
+Open **Settings → Help** for all controls. For **GBA Addon** games, hold **Select for three seconds** to return to the carousel and eject the cartridge, or press **Start + Select** for the in-game menu. Enable **Select hold** and **Save states** in Settings to use these features.
 
 ## Credits
 

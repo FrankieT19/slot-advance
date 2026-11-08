@@ -18,6 +18,7 @@ Updating? Keep your existing saves and USERNAME.TXT.
 ARTWORK
 Scrape labels and choose cartridge colours with slot. Cart Studio:
 https://studio.slot-cfw.fyi/
+You can leave the SD card connected, even when Cart Studio says to eject it.
 Then run Label Converter.exe on your PC, select your SD card and convert.
 
 YOUR NAME
@@ -27,6 +28,8 @@ Leave it empty for a blank footer.
 CONTROLS
 Left/Right: choose game. L/R: change system. A: play. Start: settings.
 Open Settings > Help for all controls and GBA Addon shortcuts.
+In GBA Addon games, hold Select for 3 seconds to return and eject the cartridge.
+Start+Select opens the in-game menu.
 
 Source, credits and licences: https://github.com/FrankieT19/slot-advance
 """
@@ -50,16 +53,6 @@ def main():
         archive=DIST/('slot-advance-'+VERSION+'-'+build['target']+'.zip')
         with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
             readme=guide(model)
-            if VERSION=='v1.1':
-                readme+='''
-OFFLINE TEST
-Launch a GBA ROM from SD with Addons and Select hold enabled.
-Hold Select for 3 seconds: the same cartridge should eject with sound.
-Power off and on: normal startup, with no eject animation.
-Start+Select opens the restyled menu. Check Resume and save/load states
-(enable Save states first), then confirm your normal game save survives reset.
-If returning does not eject, check SYSTEM/SLOT/RETURN.TXT for the test status.
-'''
             z.writestr('README.txt',readme)
             z.writestr('Label Converter.exe',converter)
             z.writestr('SD_CARD/'+build['file'],kernel)

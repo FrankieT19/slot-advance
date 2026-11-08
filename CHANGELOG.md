@@ -1,12 +1,8 @@
-# v1.1 — offline test
+# v1.1
 
-- Preserve the powered-session cookie through devkitARM's startup RAM clear.
-- Repaint only changed in-game menu rows, synchronised to VBlank.
-- Remove automatic settings writes from the carousel loop to avoid SD write stalls while browsing.
-- Add warm-return cartridge ejection using slot.'s original sound and reversed insertion path.
-- Keep hard restarts on the normal boot path using a volatile return cookie.
-- Restyle the GBA Addon menu with native DS Style text and settings-style selection.
-- Separate the addon patch cache and track its theme so existing patched games receive the new menu.
+- Reworked the in-game menu with the DS Style font and a cleaner layout.
+- Returning from a GBA Addon game to the menu now ejects the cartridge, with slot.'s animation and sound.
+- Removed background settings writes that could stall carousel navigation.
 
 # v1.0
 

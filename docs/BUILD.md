@@ -56,6 +56,6 @@ The Windows host harness uses TinyCC and a disposable mock SD card. The preview 
 
 `tools/package.py` verifies the built kernel and converter hashes, then writes the two minimal installation ZIPs under `dist/`. Each contains `SD_CARD`, `Label Converter.exe` and `README.txt`. Generated demo artwork and emulator captures are local test output and are not committed or packaged.
 
-The offline test version is `v1.1`, defined in [common/slot_version.h](../common/slot_version.h). Upstream sources are pinned in [UPSTREAM.json](../UPSTREAM.json); backend deltas are in `patches/`.
+The current version is `v1.1`, defined in [common/slot_version.h](../common/slot_version.h). Upstream sources are pinned in [UPSTREAM.json](../UPSTREAM.json); backend deltas are in `patches/`.
 
 Use local Git for source commits and pushes, and GitHub CLI (`gh release upload` / `gh release edit`) for releases. Browser-editor uploads are unnecessary.

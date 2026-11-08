@@ -9,4 +9,4 @@
 - Verify the remote commit and release assets after pushing. Use normal fast-forward pushes; do not rewrite published history as part of routine updates.
 - In the maintainer's local workspace, `../work/slot-advance-cli.ps1` may provide configured Git and GitHub CLI commands. Use it when present; other checkouts can use their installed `git` and `gh` directly.
 
-- This v1.1 feature test must stay offline. Do not push or publish it without a new user instruction.
+- Push or publish releases only when requested by the maintainer.
