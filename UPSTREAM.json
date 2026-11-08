@@ -23,6 +23,12 @@
       "repository": "https://github.com/BrandonKowalski/slot-cart-studio",
       "commit": "de868616b1de5ed3f4e50526d7e5382a3da2cbf9",
       "use": "Read to verify export paths and ZIP/metadata structure"
+    },
+    "jagoomba": {
+      "repository": "https://github.com/EvilJagaGenius/jagoombacolor",
+      "commit": "2a77825e04b7fcef968c2e5f97cb238296a1ebb5",
+      "version": "v0.5",
+      "use": "Embedded GB/GBC emulator, rebuilt with Start+Select menu, VBlank-timed Select hold and save-aware return/eject hook; regeneration in tools/build_emulator.py"
     }
   },
   "navigation_source": {

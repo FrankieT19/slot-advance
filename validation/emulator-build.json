@@ -1,0 +1,18 @@
+[
+  {
+    "target": "omega",
+    "bytes": 77292,
+    "sha256": "5ef543c91e4ccce6f0c17f0553c29cc3fcfec275ce830111ed009e9a599c6a72",
+    "iwram_headroom_bytes": 432,
+    "upstream_commit": "2a77825e04b7fcef968c2e5f97cb238296a1ebb5",
+    "test_shims": false
+  },
+  {
+    "target": "omega-de",
+    "bytes": 77412,
+    "sha256": "454f6acb1d787fa4f59057910941430de1382f098b2ed4dcb7ff2155db9a5f2b",
+    "iwram_headroom_bytes": 312,
+    "upstream_commit": "2a77825e04b7fcef968c2e5f97cb238296a1ebb5",
+    "test_shims": false
+  }
+]

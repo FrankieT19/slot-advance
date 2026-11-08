@@ -3,13 +3,13 @@ section                size        addr
 .crt0                   528   134217728
 .init                    12   134218256
 .plt                      0   134218268
-.text                 99824   134218272
-.fini                    12   134318096
-.rodata             1624456   134318112
-.ctors                    0   135942568
-.dtors                    0   135942568
-.eh_frame                 4   135942568
-.gcc_except_table         0   135942572
+.text                 99888   134218272
+.fini                    12   134318160
+.rodata             1625392   134318176
+.ctors                    0   135943568
+.dtors                    0   135943568
+.eh_frame                 4   135943568
+.gcc_except_table         0   135943572
 .iwram                18784    50331648
 .bss                   2276    50350432
 .data                  7500    50352708
@@ -30,15 +30,15 @@ section                size        addr
 .pad                      8    33804336
 .comment                 59           0
 .debug_aranges         4224           0
-.debug_info          236610           0
+.debug_info          236639           0
 .debug_abbrev         14493           0
-.debug_line          128473           0
-.debug_frame          12544           0
-.debug_str            41399           0
+.debug_line          128571           0
+.debug_frame          12548           0
+.debug_str            41415           0
 .ARM.attributes          44           0
-.debug_loclists       92943           0
-.debug_rnglists        7571           0
+.debug_loclists       92993           0
+.debug_rnglists        7572           0
 .debug_line_str         719           0
-Total               2542395
+Total               2543593
 
 

@@ -2,6 +2,7 @@
 #define SLOT_RETURN_IO_H
 #include "slot_return.h"
 static unsigned slot_return_pending;
+static unsigned slot_return_platform;
 static unsigned slot_return_request_seen;
 static unsigned slot_return_save_failed;
 static char slot_return_filename[100];
@@ -23,14 +24,15 @@ static void Slot_ReadReturn(void)
     SetRampage(0);
     slot_return_request_seen=Slot_ReturnValid(&record);
     slot_return_pending=Slot_ReturnWarmValid(&record,boot_cookie);
-    if(slot_return_pending)memcpy(slot_return_filename,record.filename,sizeof(slot_return_filename));
+    if(slot_return_pending){slot_return_platform=record.platform;memcpy(slot_return_filename,record.filename,sizeof(slot_return_filename));}
 }
-static void Slot_ArmReturn(const char *filename,unsigned native_addon)
+static void Slot_ArmReturn(const char *filename,unsigned platform,unsigned options)
 {
     SlotReturnRecord record;
     memset(&record,0,sizeof(record));
-    if(native_addon) {
+    if(platform<3) {
         record.magic=SLOT_RETURN_MAGIC;
+        record.platform=platform;record.options=options;
         snprintf(record.filename,sizeof(record.filename),"%s",filename);
         record.checksum=Slot_ReturnChecksum(&record);
     }
@@ -40,6 +42,6 @@ static void Slot_ArmReturn(const char *filename,unsigned native_addon)
 }
 #else
 static void Slot_ReadReturn(void){slot_return_pending=0;}
-static void Slot_ArmReturn(const char *filename,unsigned native_addon){(void)filename;(void)native_addon;}
+static void Slot_ArmReturn(const char *filename,unsigned platform,unsigned options){(void)filename;(void)platform;(void)options;}
 #endif
 #endif

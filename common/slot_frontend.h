@@ -379,7 +379,7 @@ static void Slot_Play(void)
     if(!slot_count) return;
     slot_config_dirty=1;
     if(!Slot_SaveConfig()) { Slot_Message("Settings could not be saved","B: return"); wait_btn(); }
-    Slot_ArmReturn(pFilename_buffer[slot_index[slot_platform]].filename,slot_platform==0);
+    Slot_ArmReturn(pFilename_buffer[slot_index[slot_platform]].filename,slot_platform,gl_reset_on?SLOT_RETURN_HOLD_ENABLED:0);
 #ifdef __arm__
     Slot_SetAddonTheme(slot_theme);
 #endif
@@ -400,7 +400,7 @@ static void Slot_Play(void)
     gl_boot_mode_pref=slot_addon?2:1;
     slot_loading_dark=slot_theme!=2;
     SD_list_MENU(slot_index[slot_platform],0,0xBB);
-    Slot_ArmReturn("",0);
+    Slot_ArmReturn("",3,0);
     Launcher_EndLaunchIndicator();
     slot_frame=(uint16_t*)pReadCache;
     SetMode(MODE_3|BG2_ENABLE); Slot_Scan();
@@ -410,7 +410,7 @@ static void Slot_CartBack(void)
 {
     unsigned dirty=1;
     if(slot_platform!=0 || !slot_count) return;
-    Slot_ArmReturn(pFilename_buffer[slot_index[slot_platform]].filename,slot_platform==0);
+    Slot_ArmReturn(pFilename_buffer[slot_index[slot_platform]].filename,slot_platform,gl_reset_on?SLOT_RETURN_HOLD_ENABLED:0);
 #ifdef __arm__
     Slot_SetAddonTheme(slot_theme);
 #endif
@@ -532,7 +532,7 @@ static void Slot_Run(void)
 #endif
     gl_show_Thumbnail=LAUNCHER_VIEW_LIST;launcher_sounds_enabled=1;gl_reset_on=1;
     Slot_ReadUsername();Slot_ReadConfig();Slot_RefreshClock();
-    if(slot_return_pending)slot_platform=0;
+    if(slot_return_pending)slot_platform=slot_return_platform;
     Slot_Scan();setRepeat(10,4);
     if(slot_return_pending) {
         unsigned i;

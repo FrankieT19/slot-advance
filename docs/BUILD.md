@@ -46,6 +46,7 @@ python tools/test_startup_save.py --tcc path/to/tcc
 python tools/test_return_io.py --tcc path/to/tcc
 python tools/test_addon_menu.py --core path/to/mgba_libretro.dll
 python tools/test_boot_return.py --core path/to/mgba_libretro.dll
+python tools/test_emulator_controls.py --tcc path/to/tcc
 ```
 
 The Windows host harness uses TinyCC and a disposable mock SD card. The preview is a normal GBA ROM with fictional labels, built from the shared renderer. Neither substitutes for testing the physical flashcart, its SD bus, save write-back or game compatibility. Exact results and memory sizes are in [validation/REPORT.md](../validation/REPORT.md).
@@ -57,5 +58,24 @@ The Windows host harness uses TinyCC and a disposable mock SD card. The preview 
 `tools/package.py` verifies the built kernel and converter hashes, then writes the two minimal installation ZIPs under `dist/`. Each contains `SD_CARD`, `Label Converter.exe` and `README.txt`. Generated demo artwork and emulator captures are local test output and are not committed or packaged.
 
 The current version is `v1.1`, defined in [common/slot_version.h](../common/slot_version.h). Upstream sources are pinned in [UPSTREAM.json](../UPSTREAM.json); backend deltas are in `patches/`.
+
+## Rebuild the GB/GBC emulator
+
+The generated `goomba.h` in each target includes Jagoomba Color v0.5 with the slot. advance controls and return hook. Normal kernel builds use those supplied headers. To regenerate them, check out `EvilJagaGenius/jagoombacolor` at commit `2a77825e04b7fcef968c2e5f97cb238296a1ebb5`, then run:
+
+```sh
+python tools/build_emulator.py --source path/to/jagoombacolor
+```
+
+The tool applies the integration to a build-directory copy of the pinned source. The changes are explicit in `tools/build_emulator.py`; the new control and reset code is under `common/slot_emulator_*` and `common/slot_jagoomba.c`. Existing emulator CPU, mapper, menu and save handling remain upstream-based.
+
+For full-emulator checks with self-authored GB/GBC save-test ROMs:
+
+```sh
+python tools/build_emulator.py --source path/to/jagoombacolor --target omega-de --test --build-root work/emulator-test
+python tools/test_emulator.py --core path/to/mgba_libretro.dll
+```
+
+Only cartridge SRAM bank access and the final reboot are substituted in that fixture. Physical-cartridge save write-back, return and cold-boot behaviour still require hardware testing.
 
 Use local Git for source commits and pushes, and GitHub CLI (`gh release upload` / `gh release edit`) for releases. Browser-editor uploads are unnecessary.

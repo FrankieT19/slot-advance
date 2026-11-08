@@ -1,0 +1,24 @@
+{
+  "status": "pass",
+  "target": "omega",
+  "checks": 44,
+  "results": [
+    {
+      "system": "GB",
+      "save_roundtrip": true,
+      "hold_exit": true,
+      "menu_exit": true,
+      "cold_boot": true,
+      "restart_stays_in_emulator": true
+    },
+    {
+      "system": "GBC",
+      "save_roundtrip": true,
+      "hold_exit": true,
+      "menu_exit": true,
+      "cold_boot": true,
+      "restart_stays_in_emulator": true
+    }
+  ],
+  "scope": "Full modified emulator with homebrew GB/GBC ROMs: actual CPU, VBlank clock, menu and battery SRAM handling. Cartridge SRAM banking and the final kernel/FPGA reboot use test shims and still require physical testing."
+}

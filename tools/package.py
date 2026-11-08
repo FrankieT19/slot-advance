@@ -28,7 +28,7 @@ Leave it empty for a blank footer.
 CONTROLS
 Left/Right: choose game. L/R: change system. A: play. Start: settings.
 Open Settings > Help for all controls and GBA Addon shortcuts.
-In GBA Addon games, hold Select for 3 seconds to return and eject the cartridge.
+In GBA Addon and GB/GBC games, hold Select for 3 seconds to return and eject.
 Start+Select opens the in-game menu.
 
 Source, credits and licences: https://github.com/FrankieT19/slot-advance

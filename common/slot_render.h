@@ -303,13 +303,13 @@ static void Slot_Help(unsigned page)
         "Settings: Up/Down to select",
         "A/Left/Right: change option"};
     static const char *const ingame[]={
-        "Native GBA with Addons:",
-        "Hold Select 3s: return to kernel",
+        "GBA Addons and GB/GBC:",
+        "Hold Select 3s: return and eject",
         "Start+Select: in-game menu",
         "Cheats, save and load states",
         "Select hold must be On.",
         "Save states On enables save/load.",
-        "GB/GBC use emulator controls."};
+        "GB/GBC: B resumes the game."};
     unsigned i;uint16_t ink=Slot_Ink();Slot_BlankShelf();
     Slot_Text(page?"Help 2/2 - In-game":"Help 1/2 - Menu",18,14,ink);
     for(i=0;i<(page?7:6);i++)Slot_Text((page?ingame:menu)[i],18,34+i*13,ink);

@@ -1,6 +1,6 @@
 {
   "status": "pass",
-  "checks": 1006,
+  "checks": 1014,
   "failed": 0,
   "scope": "Actual addon menu/return-marker assembly in mGBA with emulated SRAM banks: native glyph pixels, dirty-row-only navigation with unrelated VRAM sentinels, selection, disabled states, resume VRAM/blend restoration, cheat toggle, warm cookie and cold-start rejection. Real cartridge mapper/reset/SD timing and save/load-state IO still require hardware."
 }

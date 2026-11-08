@@ -36,7 +36,7 @@ static void return_tests(void)
     for(i=0;i<4;i++)cookie[i]=((volatile uint32_t*)SLOT_RETURN_COOKIE_ADDRESS)[i];
     for(i=0;i<sizeof(record);i++){
         ((unsigned char*)&record)[i]^=1;
-        if(i<120)CHECK(!Slot_ReturnWarmValid(&record,cookie));
+        CHECK(!Slot_ReturnWarmValid(&record,cookie));
         ((unsigned char*)&record)[i]^=1;
     }
     record.magic=0;memcpy(SRAM30,&record,sizeof(record));

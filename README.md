@@ -44,6 +44,8 @@ Edit the included **`USERNAME.TXT`** on your card. Its first line displays up to
 
 Open **Settings → Help** for all controls. For **GBA Addon** games, hold **Select for three seconds** to return to the carousel and eject the cartridge, or press **Start + Select** for the in-game menu. Enable **Select hold** and **Save states** in Settings to use these features.
 
+GB/GBC games use the same **Start + Select** menu shortcut and **Select-hold** return. Choosing **Exit** in the emulator menu also returns and ejects the cartridge.
+
 ## Credits
 
 slot. design by [Brandon Kowalski and contributors](https://github.com/slot-cfw/slot), with cartridge artwork by [Markus](https://github.com/MarkusMaribu). GBA port and DS Style by [frankiet19](https://github.com/FrankieT19), built on the EZ-FLASH kernels and SimpleLight.

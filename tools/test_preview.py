@@ -19,7 +19,7 @@ class MemoryDescriptor(C.Structure):
 class MemoryMap(C.Structure):_fields_=[('descriptors',C.POINTER(MemoryDescriptor)),('num_descriptors',C.c_uint)]
 class Emulator:
     def __init__(self,core):
-        self.lib=C.CDLL(str(core.resolve()));self.pixel_format=0;self.frame=None;self.keys=set();self.frames=0;self.ewram=None;self.vram=None;self.capture_audio=False;self.audio_data=bytearray()
+        self.lib=C.CDLL(str(core.resolve()));self.pixel_format=0;self.frame=None;self.keys=set();self.frames=0;self.ewram=None;self.iwram=None;self.vram=None;self.capture_audio=False;self.audio_data=bytearray()
         self.env=ENV(self.environment);self.video=VIDEO(self.on_video)
         self.audio=AUDIO(lambda a,b:None);self.batch=BATCH(self.on_audio_batch)
         self.poll=POLL(lambda:None);self.input=INPUT(self.on_input)
@@ -44,6 +44,7 @@ class Emulator:
             for i in range(mmap.num_descriptors):
                 desc=mmap.descriptors[i]
                 if desc.start==0x02000000 and desc.length>=0x40000:self.ewram=(desc.ptr+desc.offset,desc.length)
+                if desc.start==0x03000000 and desc.length>=0x8000:self.iwram=(desc.ptr+desc.offset,desc.length)
                 if desc.start==0x06000000 and desc.length>=0x18000:self.vram=(desc.ptr+desc.offset,desc.length)
             return True
         if cmd==47:

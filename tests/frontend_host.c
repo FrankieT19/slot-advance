@@ -437,8 +437,9 @@ static void streaming_tests(void)
 __declspec(dllexport) unsigned Slot_HostStreamMisses(void){return stream_steady_misses;}
 static void eject_tests(void)
 {
-    unsigned insert[64],i,rest;
-    slot_platform=0;slot_index[0]=0;slot_animations=1;slot_partial_motion=0;Slot_Scan();Slot_DrawShelf(0,0,0,0);rest=centre_hash();
+    unsigned insert[64],i,rest,platform;
+    for(platform=0;platform<3;platform++){
+    slot_platform=platform;slot_index[platform]=0;slot_animations=1;slot_partial_motion=0;Slot_Scan();Slot_DrawShelf(0,0,0,0);rest=centre_hash();
     capture_count=0;capture_motion=1;Slot_Play();capture_motion=0;
     CHECK(capture_count==SLOT_INSERT_FRAMES+1); /* Mock launch returns, then scans once. */
     memcpy(insert,capture_hashes,sizeof(unsigned)*SLOT_INSERT_FRAMES);
@@ -449,6 +450,7 @@ static void eject_tests(void)
     CHECK(capture_hashes[capture_count-1]==rest);CHECK(!slot_return_pending);CHECK(eject_sounds==1);
     slot_animations=0;slot_return_pending=1;eject_sounds=0;Slot_EjectReplay();
     CHECK(centre_hash()==rest && !slot_return_pending && eject_sounds==1);
+    }
 }
 __declspec(dllexport) unsigned Slot_HostStreamFrames(void){return stream_steady_frames;}
 static void carousel_loop_tests(void)
@@ -459,6 +461,18 @@ static void carousel_loop_tests(void)
     CHECK(loop_calls==251);CHECK(slot_navigation.steps==2);
     CHECK(io_write_calls==0);CHECK(slot_config_dirty);
     CHECK(slot_navigation.enabled);
+    {
+        unsigned platform;
+        for(platform=1;platform<3;platform++){
+            slot_platform=platform;Slot_Scan();
+            strcpy(slot_return_filename,pFilename_buffer[0].filename);
+            slot_return_platform=platform;slot_return_pending=1;
+            slot_animations=0;eject_sounds=0;loop_calls=0;loop_active=1;
+            if(!setjmp(loop_exit))Slot_Run();
+            loop_active=0;Slot_CancelArt();
+            CHECK(slot_platform==platform);CHECK(!slot_return_pending);CHECK(eject_sounds==1);
+        }
+    }
 }
 __declspec(dllexport) unsigned Slot_HostCheckCount(void){return checks;}
 __declspec(dllexport) int main(int argc,char **argv)

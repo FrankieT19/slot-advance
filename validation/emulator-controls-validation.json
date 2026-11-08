@@ -1,0 +1,5 @@
+{
+  "status": "pass",
+  "checks": 2513,
+  "scope": "Select hold at 180 physical VBlanks, Start+Select priority, short presses and release reset, menu release gate, disabled hold, fast-forward repeated samples, unsigned clock wrap and removal of L+R menu chord."
+}
