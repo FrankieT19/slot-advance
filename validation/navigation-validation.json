@@ -1,0 +1,30 @@
+{
+  "status": "pass",
+  "vblank_comparisons": 84000,
+  "max_position_error_gba_pixels": 0.022500371926438743,
+  "hold_step_times_ms": [
+    0,
+    401,
+    602,
+    803,
+    1004,
+    1205,
+    1406,
+    1607,
+    1808,
+    2009,
+    2210,
+    2410,
+    2611,
+    2812
+  ],
+  "repeat_delay_ms": 400,
+  "repeat_intervals_ms": [
+    200
+  ],
+  "scrolling_never_waits_for_renderer": true,
+  "spring_omega": 16,
+  "input_queue": false,
+  "source": "Slot spring equations; GBA-specific steady 200 ms repeat",
+  "scope": "Compiled shared controller versus independent float spring and slower hold schedule, with no render acknowledgements. Does not measure physical SD stalls or LCD cadence."
+}

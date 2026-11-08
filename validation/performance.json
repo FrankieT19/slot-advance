@@ -1,0 +1,76 @@
+{
+  "method": "mGBA libretro; one Right press from first GBA cart, 100 startup frames, count emulated frames until selected index becomes 1; 59.7275 Hz. Includes input observation/handoff, not a physical LCD measurement.",
+  "v0.1": {
+    "move_frames": 35,
+    "ms": 585.9947260474656
+  },
+  "v0.2": {
+    "move_frames": 13,
+    "ms": 217.65518396048722
+  },
+  "v0.1_preview_sha256": "786693fef2649f60ab9e82b6467278344ab40ce7dc912823ca637f541e83bffa",
+  "v0.3": {
+    "emulated_frames": 10,
+    "ms": 167.42706458499015,
+    "distinct_frame_changes": 5
+  },
+  "v0.3_method": "Real preview ROM, one Right press, count input-to-settled display frames using motion marker; rapid tap checks use move counter. Not a fixed-60-FPS or physical-LCD claim.",
+  "v0.4": {
+    "held_navigation": {
+      "GBA": {
+        "display_changes_in_180_vblanks": 90,
+        "display_changes_per_second": 29.86,
+        "draw_cpu_cycles_min": 230531,
+        "draw_cpu_cycles_max": 271547,
+        "input_model_hz": 59.7275
+      },
+      "GB": {
+        "display_changes_in_180_vblanks": 90,
+        "display_changes_per_second": 29.86,
+        "draw_cpu_cycles_min": 349444,
+        "draw_cpu_cycles_max": 409451,
+        "input_model_hz": 59.7275
+      },
+      "GBC": {
+        "display_changes_in_180_vblanks": 90,
+        "display_changes_per_second": 29.86,
+        "draw_cpu_cycles_min": 346079,
+        "draw_cpu_cycles_max": 407135,
+        "input_model_hz": 59.7275
+      }
+    },
+    "method": "180 display frames after 60 held warm-up frames per platform. The spring controller ticks every VBlank, independent of rendering; no SD IO in the preview. Each result counts changed displayed images, including the physical display-frame budget."
+  },
+  "v0.5": {
+    "held_navigation": {
+      "GBA": {
+        "display_changes_in_180_vblanks": 90,
+        "display_changes_per_second": 29.86,
+        "draw_cpu_cycles_min": 239774,
+        "draw_cpu_cycles_max": 270585,
+        "input_model_hz": 59.7275
+      },
+      "GB": {
+        "display_changes_in_180_vblanks": 90,
+        "display_changes_per_second": 29.86,
+        "draw_cpu_cycles_min": 379556,
+        "draw_cpu_cycles_max": 411279,
+        "input_model_hz": 59.7275
+      },
+      "GBC": {
+        "display_changes_in_180_vblanks": 90,
+        "display_changes_per_second": 29.86,
+        "draw_cpu_cycles_min": 381119,
+        "draw_cpu_cycles_max": 415463,
+        "input_model_hz": 59.7275
+      }
+    },
+    "bmp_colour_conversion": {
+      "pixels": 11648,
+      "old_thumb_cpu_cycles": 1013201,
+      "new_arm_cpu_cycles": 210090,
+      "speedup": 4.82
+    },
+    "method": "180 display frames after 60 held warm-up frames per platform. Spring controller ticks each VBlank; steady 200 ms repeat, no loading/presentation gate. Decoder comparison uses prior Thumb conversion versus new ARM conversion on identical staged pixels. No SD IO in preview."
+  }
+}

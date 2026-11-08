@@ -1,0 +1,9 @@
+{
+  "emulator": "mGBA 0.11-212-7a12d6d",
+  "compiled_c_checks": 3860,
+  "failed": 0,
+  "interactive_checks": 29,
+  "insert_audio_peak": 24384,
+  "video": "240x160",
+  "scope": "Shared renderer and pure C format/navigation logic; flashcart IO and ROM launch require hardware."
+}

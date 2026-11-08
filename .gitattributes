@@ -1,0 +1,6 @@
+# Preserve inherited kernel source encodings and binary artwork verbatim.
+* -text
+*.md text eol=lf
+*.py text eol=lf
+*.json text eol=lf
+*.yml text eol=lf

@@ -1,0 +1,252 @@
+{
+  "date": "2026-11-08",
+  "public_version": "v1.0",
+  "status": "hardware-test candidate",
+  "converter_tests": {
+    "run": 41,
+    "failed": 0
+  },
+  "converter_application": {
+    "status": "pass",
+    "frozen": true,
+    "converted": 10,
+    "generated_bmps": 30,
+    "repeated_runs": 2,
+    "path_only_windows": true,
+    "source_labels_rom_and_save_unchanged": true,
+    "native_text_palette_including_transparency": 3,
+    "realistic_and_simple_assets_bundled": true,
+    "label_corner_pixels_removed": 4,
+    "gui": "Same tested folder-picker/worker flow as 0.2; branding updated, conversion verified through the frozen executable."
+  },
+  "converter_application_build": {
+    "file": "slot-advance-label-converter-v1.0.exe",
+    "bytes": 20683647,
+    "sha256": "9e714dec4fcf72ce6805b20eddd16803bdffcd7f045e6b4ab7c92aed773b5fac",
+    "platform": "Windows x64",
+    "one_file": true,
+    "python_required": false
+  },
+  "animation_performance": {
+    "method": "mGBA libretro; one Right press from first GBA cart, 100 startup frames, count emulated frames until selected index becomes 1; 59.7275 Hz. Includes input observation/handoff, not a physical LCD measurement.",
+    "v0.1": {
+      "move_frames": 35,
+      "ms": 585.9947260474656
+    },
+    "v0.2": {
+      "move_frames": 13,
+      "ms": 217.65518396048722
+    },
+    "v0.1_preview_sha256": "786693fef2649f60ab9e82b6467278344ab40ce7dc912823ca637f541e83bffa",
+    "v0.3": {
+      "emulated_frames": 10,
+      "ms": 167.42706458499015,
+      "distinct_frame_changes": 5
+    },
+    "v0.3_method": "Real preview ROM, one Right press, count input-to-settled display frames using motion marker; rapid tap checks use move counter. Not a fixed-60-FPS or physical-LCD claim.",
+    "v0.4": {
+      "held_navigation": {
+        "GBA": {
+          "display_changes_in_180_vblanks": 90,
+          "display_changes_per_second": 29.86,
+          "draw_cpu_cycles_min": 230531,
+          "draw_cpu_cycles_max": 271547,
+          "input_model_hz": 59.7275
+        },
+        "GB": {
+          "display_changes_in_180_vblanks": 90,
+          "display_changes_per_second": 29.86,
+          "draw_cpu_cycles_min": 349444,
+          "draw_cpu_cycles_max": 409451,
+          "input_model_hz": 59.7275
+        },
+        "GBC": {
+          "display_changes_in_180_vblanks": 90,
+          "display_changes_per_second": 29.86,
+          "draw_cpu_cycles_min": 346079,
+          "draw_cpu_cycles_max": 407135,
+          "input_model_hz": 59.7275
+        }
+      },
+      "method": "180 display frames after 60 held warm-up frames per platform. The spring controller ticks every VBlank, independent of rendering; no SD IO in the preview. Each result counts changed displayed images, including the physical display-frame budget."
+    },
+    "v0.5": {
+      "held_navigation": {
+        "GBA": {
+          "display_changes_in_180_vblanks": 90,
+          "display_changes_per_second": 29.86,
+          "draw_cpu_cycles_min": 239774,
+          "draw_cpu_cycles_max": 270585,
+          "input_model_hz": 59.7275
+        },
+        "GB": {
+          "display_changes_in_180_vblanks": 90,
+          "display_changes_per_second": 29.86,
+          "draw_cpu_cycles_min": 379556,
+          "draw_cpu_cycles_max": 411279,
+          "input_model_hz": 59.7275
+        },
+        "GBC": {
+          "display_changes_in_180_vblanks": 90,
+          "display_changes_per_second": 29.86,
+          "draw_cpu_cycles_min": 381119,
+          "draw_cpu_cycles_max": 415463,
+          "input_model_hz": 59.7275
+        }
+      },
+      "bmp_colour_conversion": {
+        "pixels": 11648,
+        "old_thumb_cpu_cycles": 1013201,
+        "new_arm_cpu_cycles": 210090,
+        "speedup": 4.82
+      },
+      "method": "180 display frames after 60 held warm-up frames per platform. Spring controller ticks each VBlank; steady 200 ms repeat, no loading/presentation gate. Decoder comparison uses prior Thumb conversion versus new ARM conversion on identical staged pixels. No SD IO in preview."
+    }
+  },
+  "audio": {
+    "status": "pass",
+    "samples": 5292,
+    "seconds": 0.24,
+    "signed8_peak": 127,
+    "rms_gain_db_vs_0_4": 4.750522109710333,
+    "source_duration_preserved": true,
+    "zero_ended_fades": true,
+    "embedded_pcm_matches_wave": true,
+    "scope": "Offline waveform level and range; actual speaker loudness depends on hardware. Smooth limiting raises the quieter body while keeping peaks within signed-8 range."
+  },
+  "navigation": {
+    "status": "pass",
+    "vblank_comparisons": 84000,
+    "max_position_error_gba_pixels": 0.022500371926438743,
+    "hold_step_times_ms": [
+      0,
+      401,
+      602,
+      803,
+      1004,
+      1205,
+      1406,
+      1607,
+      1808,
+      2009,
+      2210,
+      2410,
+      2611,
+      2812
+    ],
+    "repeat_delay_ms": 400,
+    "repeat_intervals_ms": [
+      200
+    ],
+    "scrolling_never_waits_for_renderer": true,
+    "spring_omega": 16,
+    "input_queue": false,
+    "source": "Slot spring equations; GBA-specific steady 200 ms repeat",
+    "scope": "Compiled shared controller versus independent float spring and slower hold schedule, with no render acknowledgements. Does not measure physical SD stalls or LCD cadence."
+  },
+  "motion": {
+    "status": "pass",
+    "single_move": {
+      "emulated_frames": 32,
+      "ms": 535.7666066719685,
+      "distinct_frame_changes": 14
+    },
+    "rapid_taps": 8,
+    "target_retargets_before_settling": true,
+    "direction_reversal_preserved": true,
+    "held_repeat_stops_on_release": true,
+    "skeuomorphic_toggle": true,
+    "about_page": true,
+    "about_survives_entering_key": true,
+    "help_pages": 2,
+    "help_survives_entering_key": true,
+    "cache_refresh_preserves_pixels": true,
+    "scope": "Shared GBA renderer and continuously retargeted spring. Settling includes a nearly invisible subpixel tail, not an input lockout. Physical SD reads and LCD cadence require cartridge testing."
+  },
+  "startup_save": {
+    "status": "pass",
+    "checks": 5,
+    "failed": 0,
+    "scope": "Actual DE Check_save_flag compiled against mocked save-info and SD IO: absent flag, success, failed write, failed path, retry. No physical save write-back claim."
+  },
+  "boot_entry": {
+    "status": "pass",
+    "unit_tests": 4,
+    "release_header_checks": [
+      {
+        "target": "omega",
+        "first_224_bytes_match_01": true,
+        "header_entry": "0xEA00002E",
+        "header_sha256": "33219f6b63a62c2300f9f402ed5f60c568a2a11ec7d4aac3a4ecc600c63b0cee"
+      },
+      {
+        "target": "omega-de",
+        "first_224_bytes_match_01": true,
+        "header_entry": "0xEA00002E",
+        "header_sha256": "33219f6b63a62c2300f9f402ed5f60c568a2a11ec7d4aac3a4ecc600c63b0cee"
+      }
+    ],
+    "startup_after_first_video_callback": "14 consecutive fully black frames before splash",
+    "scope": "Header compatibility with working 0.1 binaries, early-entry ARM execution in mGBA. Physical cartridge recognition remains to be confirmed.",
+    "diagnosis": "0.2 changed the first word from 0xEA00002E to an end-of-ROM branch. This is the suspected cause of the reported no-kernel-found error; the exact loader acceptance check has not been independently inspected."
+  },
+  "frontend_host": {
+    "status": "pass",
+    "checks": 2459,
+    "failed": 0,
+    "steady_stream_frames": 750,
+    "steady_visible_cache_misses": 0,
+    "streaming_checks": "Twenty-game holds/reversals across both styles and all systems, 24-row reads, no partial image exposure, cancel/retry, missing/malformed/failing reads; 36 endpoint image comparisons and 288 full-versus-incremental comparisons.",
+    "scope": "Actual common/slot_frontend.h with mocked hardware/SD IO, real converter BMPs, settings faults, streaming cache, empty/missing/error/512-entry shelves, launch delegation and menus. Does not measure physical SD latency."
+  },
+  "emulator": {
+    "emulator": "mGBA 0.11-212-7a12d6d",
+    "compiled_c_checks": 3860,
+    "failed": 0,
+    "interactive_checks": 29,
+    "insert_audio_peak": 24384,
+    "video": "240x160",
+    "scope": "Shared renderer and pure C format/navigation logic; flashcart IO and ROM launch require hardware."
+  },
+  "builds": [
+    {
+      "target": "omega",
+      "file": "ezkernel.bin",
+      "bytes": 1741276,
+      "budget_bytes": 2097152,
+      "headroom_bytes": 355876,
+      "sha256": "df4fa396f7bbbc08e86348ddc5eeb9b9ce794b35d2d2ee370465a6b299368c18",
+      "ram": {
+        "ewram_static_bytes": 249912,
+        "ewram_free_bytes": 12232,
+        "iwram_static_bytes": 26328,
+        "iwram_headroom_to_user_stack_bytes": 6184
+      },
+      "compiler": "arm-none-eabi-gcc.exe (devkitARM) 16.1.0"
+    },
+    {
+      "target": "omega-de",
+      "file": "ezkernelnew.bin",
+      "bytes": 1741172,
+      "budget_bytes": 2097152,
+      "headroom_bytes": 355980,
+      "sha256": "7d96b7cd02bb985fb844d802c48ea60a21a589e7fd851f72e83bc73e7f5de10c",
+      "ram": {
+        "ewram_static_bytes": 249912,
+        "ewram_free_bytes": 12232,
+        "iwram_static_bytes": 26736,
+        "iwram_headroom_to_user_stack_bytes": 5776
+      },
+      "compiler": "arm-none-eabi-gcc.exe (devkitARM) 16.1.0"
+    }
+  ],
+  "preview_sha256": "b123a2777daa7bed69d965ab6dc50dbc0167b5833d080beeb6822eb5b0a3b487",
+  "not_verified": [
+    "Boot on physical Omega and Omega DE Rev A / Rev B",
+    "Physical SD IO and cartridge PSRAM cache behaviour",
+    "Native GBA launch and GB/GBC emulator launch",
+    "Save write-back across full power cycles",
+    "Native GBA addon reset on 180 VBlanks, Start+Select menu, states/sleep and game compatibility",
+    "Physical LCD animation, sound and input timing; startup/reset display before kernel entry"
+  ]
+}

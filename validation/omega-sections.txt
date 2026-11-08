@@ -1,0 +1,44 @@
+omega/slot.elf :
+section                size        addr
+.crt0                   528   134217728
+.init                    12   134218256
+.plt                      0   134218268
+.text                 99184   134218272
+.fini                    12   134317456
+.rodata             1617312   134317472
+.ctors                    0   135934784
+.dtors                    0   135934784
+.eh_frame                 4   135934784
+.gcc_except_table         0   135934788
+.iwram                16640    50331648
+.bss                   2180    50348288
+.data                  7500    50350468
+.init_array               4    50357968
+.fini_array               4    50357972
+.iwram0                   0    50357976
+.iwram1                   0    50357976
+.iwram2                   0    50357976
+.iwram3                   0    50357976
+.iwram4                   0    50357976
+.iwram5                   0    50357976
+.iwram6                   0    50357976
+.iwram7                   0    50357976
+.iwram8                   0    50357976
+.iwram9                   0    50357976
+.ewram                    0    33554432
+.sbss                249904    33554432
+.pad                      8    33804336
+.comment                 59           0
+.debug_aranges         4216           0
+.debug_info          233227           0
+.debug_abbrev         14693           0
+.debug_line          126682           0
+.debug_frame          12400           0
+.debug_str            40847           0
+.ARM.attributes          44           0
+.debug_loclists       91465           0
+.debug_rnglists        7485           0
+.debug_line_str         715           0
+Total               2525125
+
+

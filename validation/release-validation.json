@@ -1,0 +1,19 @@
+{
+  "status": "pass",
+  "packages": [
+    {
+      "model": "omega",
+      "file": "slot-advance-v1.0-omega.zip",
+      "converter_included": true,
+      "username_preserved_on_update": true,
+      "zip_integrity": "pass"
+    },
+    {
+      "model": "omega-de",
+      "file": "slot-advance-v1.0-omega-de.zip",
+      "converter_included": true,
+      "username_preserved_on_update": true,
+      "zip_integrity": "pass"
+    }
+  ]
+}

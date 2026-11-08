@@ -1,0 +1,2503 @@
+--- a/source/ezkernelnew.c
++++ b/source/ezkernelnew.c
+@@ -609,6 +609,7 @@
+ 
+ static u16 launcher_theme_index = 0;
+ static u16 launcher_dark_mode = 0;
++static u16 slot_loading_dark = 1;
+ static u16 launcher_auto_theme = 0;
+ static u16 launcher_auto_theme_pending = 0;
+ static u16 launcher_custom_theme_mode = 0;
+@@ -1281,293 +1282,7 @@
+ 	ClearWithBG((u16*)base, x, y, w, h, 1);
+ }
+ //******************************************************************************
+-#define REG_SOUNDCNT_L_UI   (*(volatile u16*)0x04000080)
+-#define REG_SOUNDCNT_H_UI   (*(volatile u16*)0x04000082)
+-#define REG_SOUNDCNT_X_UI   (*(volatile u16*)0x04000084)
+-#define REG_TM0CNT_L_UI     (*(volatile u16*)0x04000100)
+-#define REG_TM0CNT_H_UI     (*(volatile u16*)0x04000102)
+-#define REG_TM1CNT_L_UI     (*(volatile u16*)0x04000104)
+-#define REG_TM1CNT_H_UI     (*(volatile u16*)0x04000106)
+-#define REG_DMA1SAD_UI      (*(volatile u32*)0x040000BC)
+-#define REG_DMA1DAD_UI      (*(volatile u32*)0x040000C0)
+-#define REG_DMA1CNT_UI      (*(volatile u32*)0x040000C4)
+-#define REG_FIFO_A_UI       (*(volatile u32*)0x040000A0)
+-#define REG_SOUNDBIAS_UI    (*(volatile u16*)0x04000088)
+-#define REG_IF_UI           (*(volatile u16*)0x04000202)
+-
+-#define UI_DMA_ENABLE       0x80000000
+-#define UI_DMA_TIMING_FIFO  0x30000000
+-#define UI_DMA_32BIT        0x04000000
+-#define UI_DMA_REPEAT       0x02000000
+-#define UI_DMA_DST_FIXED    0x00200000
+-#define UI_DMA_SRC_INC      0x00000000
+-#define UI_DMA_COUNT_4      0x00000004
+-
+-#define UI_TIMER_ENABLE     0x0080
+-#define UI_TIMER_FREQ_1     0x0000
+-#define UI_TIMER_FREQ_1024  0x0003
+-#define UI_TIMER_COUNT_UP   0x0004
+-#define UI_TIMER_IRQ        0x0040
+-
+-#define UI_SOUNDCNT_A_RIGHT 0x0100
+-#define UI_SOUNDCNT_A_LEFT  0x0200
+-#define UI_SOUNDCNT_A_TIMER0 0x0000
+-#define UI_SOUNDCNT_A_RESET 0x0800
+-#define UI_MASTER_ENABLE    0x0080
+-#define UI_AUDIO_BUFFER_SIZE 0x2000
+-#define UI_AUDIO_MAX_SAMPLES 65520
+-
+-typedef enum
+-{
+-    UI_SFX_NONE = 0,
+-    UI_SFX_ACCEPT,
+-    UI_SFX_BACK,
+-    UI_SFX_MENU,
+-    UI_SFX_MOVE,
+-    UI_SFX_STARTUP,
+-    UI_SFX_TAB,
+-    UI_SFX_LAUNCH
+-} UI_SFX_ID;
+-
+-static u16 UIAudio_TimerReload(u32 sample_rate)
+-{
+-    if(sample_rate == 0) sample_rate = 22050;
+-    return (u16)(65536 - (16777216 / sample_rate));
+-}
+-
+-static volatile u8 g_ui_audio_initialised = 0;
+-static volatile u8 g_ui_audio_active = 0;
+-static volatile u8 g_ui_audio_uses_shared_buffer = 0;
+-
+-static void UIAudio_Stop(void);
+-static void UIAudio_Timer1IRQ(void);
+-
+-static void UIAudio_StopForSharedBufferUse(void)
+-{
+-    if(g_ui_audio_active && g_ui_audio_uses_shared_buffer)
+-        UIAudio_Stop();
+-}
+-
+-static void UIAudio_Update(void);
+-
+-static void UIAudio_WaitForCurrentClip(u32 max_frames)
+-{
+-    u32 frames = 0;
+-
+-    while(g_ui_audio_active && (frames < max_frames))
+-    {
+-        VBlankIntrWait();
+-        UIAudio_Update();
+-        frames++;
+-    }
+-}
+-
+-static s8 *UIAudio_GetBuffer(void)
+-{
+-    return g_ui_audio_buffer;
+-}
+-
+-static s8 *UIAudio_GetSharedLongClipBuffer(void)
+-{
+-    return (s8*)pReadCache;
+-}
+-
+-static u32 UIAudio_PrepareBuffer(const signed char *data, u32 len, u32 allow_shared_long_clip, s8 **out_buffer)
+-{
+-    u32 copy_len;
+-    u32 padded_len;
+-    u32 buffer_size;
+-    s8 *buffer;
+-
+-    if(out_buffer)
+-        *out_buffer = 0;
+-
+-    if(!data || !len)
+-        return 0;
+-
+-    if(allow_shared_long_clip && (len > UI_AUDIO_BUFFER_SIZE))
+-    {
+-        copy_len = len;
+-        if(copy_len > UI_AUDIO_MAX_SAMPLES)
+-            copy_len = UI_AUDIO_MAX_SAMPLES;
+-        if(out_buffer)
+-            *out_buffer = (s8*)data;
+-        return copy_len;
+-    }
+-
+-    buffer = UIAudio_GetBuffer();
+-    buffer_size = UI_AUDIO_BUFFER_SIZE;
+-
+-    copy_len = len;
+-    if(copy_len > buffer_size)
+-        copy_len = buffer_size;
+-    if(copy_len > UI_AUDIO_MAX_SAMPLES)
+-        copy_len = UI_AUDIO_MAX_SAMPLES;
+-
+-    padded_len = (copy_len + 15) & ~15;
+-    if(padded_len > buffer_size)
+-        padded_len = buffer_size;
+-
+-    /* Clear the active transfer, including its final partial FIFO block. */
+-    if(data != buffer)
+-    {
+-        memset(buffer, 0, padded_len);
+-        memcpy(buffer, data, copy_len);
+-    }
+-
+-    if(out_buffer)
+-        *out_buffer = buffer;
+-
+-    return padded_len;
+-}
+-
+-
+-static void UIAudio_StopHardware(void)
+-{
+-    REG_DMA1CNT_UI = 0;
+-    REG_TM0CNT_H_UI = 0;
+-    REG_TM1CNT_H_UI = 0;
+-    REG_DMA1SAD_UI = 0;
+-    REG_DMA1DAD_UI = 0;
+-    REG_SOUNDCNT_H_UI |= UI_SOUNDCNT_A_RESET;
+-    REG_IF_UI = IRQ_TIMER1;
+-    g_ui_audio_active = 0;
+-    g_ui_audio_uses_shared_buffer = 0;
+-}
+-
+-static void UIAudio_Stop(void)
+-{
+-    u16 old_ime = REG_IME;
+-    REG_IME = 0;
+-    UIAudio_StopHardware();
+-    REG_IME = old_ime;
+-    delay(8);
+-}
+-
+-static void UIAudio_StopFromTimer(void)
+-{
+-    UIAudio_StopHardware();
+-}
+-
+-static void UIAudio_Timer1IRQ(void)
+-{
+-    UIAudio_StopFromTimer();
+-}
+-
+-static void UIAudio_Update(void)
+-{
+-    (void)g_ui_audio_active;
+-}
+-
+-void UIAudio_Init(void)
+-{
+-    u16 old_ime = REG_IME;
+-    REG_IME = 0;
+-    REG_DMA1CNT_UI = 0;
+-    REG_TM0CNT_H_UI = 0;
+-    REG_TM1CNT_H_UI = 0;
+-    REG_IF_UI = IRQ_TIMER1;
+-    REG_SOUNDCNT_X_UI = 0;
+-    REG_SOUNDCNT_L_UI = 0;
+-    REG_SOUNDCNT_H_UI = 0;
+-    REG_SOUNDBIAS_UI = 0x0200;
+-    delay(256);
+-    REG_SOUNDCNT_X_UI = UI_MASTER_ENABLE;
+-    delay(64);
+-    REG_SOUNDCNT_H_UI =
+-        UI_SOUNDCNT_A_RIGHT |
+-        UI_SOUNDCNT_A_LEFT  |
+-        UI_SOUNDCNT_A_TIMER0 |
+-        UI_SOUNDCNT_A_RESET |
+-        (1 << 2);  // 100% volume
+-
+-    g_ui_audio_active = 0;
+-    g_ui_audio_uses_shared_buffer = 0;
+-
+-    irqSet(IRQ_TIMER1, UIAudio_Timer1IRQ);
+-    irqEnable(IRQ_TIMER1);
+-
+-    g_ui_audio_initialised = 1;
+-    REG_IME = old_ime;
+-}
+-
+-static void UIAudio_PlayRaw(const signed char *data, u32 len, u32 sample_rate, u32 allow_shared_long_clip)
+-{
+-    u32 sample_count;
+-    u32 copy_len;
+-    u32 padded_len;
+-    s8 *play_buffer;
+-    u16 old_ime;
+-
+-    if(!g_ui_audio_initialised || !data || !len)
+-        return;
+-
+-    /* Stop the previous FIFO stream before touching the bounce buffer.
+-       Otherwise DMA can read the buffer while it is being memset/memcpy'd,
+-       which is the classic source of random clipped UI sounds. */
+-    UIAudio_Update();
+-    if(g_ui_audio_active)
+-        UIAudio_Stop();
+-
+-    copy_len = UIAudio_PrepareBuffer(data, len, allow_shared_long_clip, &play_buffer);
+-    if(copy_len == 0 || !play_buffer)
+-        return;
+-
+-    if(allow_shared_long_clip && (play_buffer == (s8*)data))
+-        padded_len = copy_len;
+-    else
+-        padded_len = (copy_len + 15) & ~15;
+-    sample_count = padded_len;
+-    if(sample_count == 0)
+-        return;
+-    if(sample_count > UI_AUDIO_MAX_SAMPLES)
+-        sample_count = UI_AUDIO_MAX_SAMPLES;
+-
+-    old_ime = REG_IME;
+-    REG_IME = 0;
+-    UIAudio_StopHardware();
+-    REG_SOUNDBIAS_UI = 0x0200;
+-    REG_DMA1SAD_UI = (u32)play_buffer;
+-    REG_DMA1DAD_UI = (u32)&REG_FIFO_A_UI;
+-    REG_DMA1CNT_UI = UI_DMA_COUNT_4 | UI_DMA_ENABLE | UI_DMA_TIMING_FIFO | UI_DMA_32BIT | UI_DMA_REPEAT | UI_DMA_DST_FIXED | UI_DMA_SRC_INC;
+-
+-    REG_TM0CNT_L_UI = UIAudio_TimerReload(sample_rate);
+-    REG_TM1CNT_H_UI = 0;
+-    REG_TM1CNT_L_UI = (u16)(0x10000 - sample_count);
+-    REG_IF_UI = IRQ_TIMER1;
+-    g_ui_audio_active = 1;
+-    g_ui_audio_uses_shared_buffer = allow_shared_long_clip && (play_buffer == UIAudio_GetSharedLongClipBuffer());
+-    /* Timer 1 counts Timer 0 sample ticks, so playback stops on an exact sample
+-       boundary rather than an independently approximated wall-clock duration. */
+-    REG_TM1CNT_H_UI = UI_TIMER_ENABLE | UI_TIMER_COUNT_UP | UI_TIMER_IRQ;
+-    REG_TM0CNT_H_UI = UI_TIMER_ENABLE | UI_TIMER_FREQ_1;
+-    REG_IME = old_ime;
+-}
+-
+-static void UIAudio_PlaySfx(UI_SFX_ID id)
+-{
+-    if((id != UI_SFX_STARTUP) && !launcher_sounds_enabled)
+-    {
+-        UIAudio_StopForSharedBufferUse();
+-        return;
+-    }
+-
+-    switch(id)
+-    {
+-        case UI_SFX_ACCEPT: UIAudio_PlayRaw((const signed char*)accept_raw, accept_raw_len, 22050, 0); break;
+-        case UI_SFX_BACK: UIAudio_PlayRaw((const signed char*)back_raw, back_raw_len, 22050, 0); break;
+-        case UI_SFX_MENU: UIAudio_PlayRaw((const signed char*)menu_raw, menu_raw_len, 22050, 0); break;
+-        case UI_SFX_MOVE: UIAudio_PlayRaw((const signed char*)move_raw, move_raw_len, 22050, 0); break;
+-        case UI_SFX_STARTUP: UIAudio_PlayRaw((const signed char*)startup_raw, startup_raw_len, 22050, 1); break;
+-        case UI_SFX_TAB: UIAudio_PlayRaw((const signed char*)tab_raw, tab_raw_len, 22050, 0); break;
+-        case UI_SFX_LAUNCH:
+-            UIAudio_Stop();
+-            LZ77UnCompWram(select_lz, g_ui_audio_buffer);
+-            UIAudio_PlayRaw(g_ui_audio_buffer, select_raw_len, 8000, 0);
+-            break;
+-        default: break;
+-    }
+-}
++#include "slot_audio_driver.h"
+ 
+ #include "popup_chrome.h"
+ #include "menu_fade.h"
+@@ -5735,7 +5450,7 @@
+ 			for(j = i; j >= gap; j -= gap)
+ 			{
+ 				dmaCopy(&pFilename_buffer[j - gap], &pFilename_sort_probe, sizeof(FM_FILE_FS));
+-				if(strcmp(pFilename_sort_probe.filename, pFilename_temp.filename) <= 0)
++				if(strcasecmp(pFilename_sort_probe.filename, pFilename_temp.filename) <= 0)
+ 					break;
+ 				dmaCopy(&pFilename_sort_probe, &pFilename_buffer[j], sizeof(FM_FILE_FS));
+ 			}
+@@ -8955,7 +8670,7 @@
+ 		return 7;
+ 
+ 	//u32 is_EMU;
+-	if(!strcasecmp(ext, "gba"))
++	if(!strcasecmp(ext, "gba") || !strcasecmp(ext, "agb"))
+ 	{
+ 		return 0;
+ 	}
+@@ -9151,70 +8866,20 @@
+ 
+ void Check_save_flag(void)
+ {
+-	//check save
+-	u16 readd;
+-	u32 savefilesize;
+-	u32 res;
+-	u32 save_written = 0;
+-	u32 discard_save = 0;
+-	readd = Read_sav_info(0);
+-	savefilesize = Read_sav_info(1)<<9;
+-	if(readd==0x11)
+-	{
+-			/* The splash/startup PCM may still be active when a NOR/FRAM save
+-			recovery screen appears after reset.  Close FIFO DMA before drawing
+-			or touching save buffers so it cannot buzz over the save prompt. */
+-			UIAudio_StopForSharedBufferUse();
+-			register u32 loopwrite ;
+-			for(loopwrite=0;loopwrite<0x200/2;loopwrite++)
+-			{
+-				((u16*)SAV_info_buffer)[loopwrite] = Read_sav_info(loopwrite+2);
+-			}
+-            char display_name[100];
+-            u32 artwork;
+-            memcpy(display_name, SAV_info_buffer, sizeof(display_name)-1);
+-            display_name[sizeof(display_name)-1] = 0;
+-            artwork = Launcher_LoadSaveArtwork(display_name);
+-            Launcher_EndSplash();
+-            Launcher_DrawThemeBGFull(Launcher_GetBGImage());
+-            Launcher_DrawSaveTopbar();
+-            Launcher_DrawSavePopup(display_name, artwork, gl_auto_save_sel != 0);
+-
+-			if(gl_auto_save_sel){
+-					res = f_mkdir(SAVER_FOLDER);//"/SAVER"
+-					if((res == FR_OK || res == FR_EXIST) && f_chdir(SAVER_FOLDER) == FR_OK)
+-						save_written = Save_savefile((TCHAR *)SAV_info_buffer,savefilesize);
+-			}
+-			else{
+-				while(1){
+-					VBlankIntrWait();
+-					scanKeys();
+-					u16 keysdown  = keysDown();
+-					UIAudio_HandleKeys(keysdown, 0);
+-					if (keysdown & KEY_A) {
+-						UIAudio_PlayAccept();
+-						Launcher_SavePopupBeginWrite();
+-						res = f_mkdir(SAVER_FOLDER);
+-						if((res == FR_OK || res == FR_EXIST) && f_chdir(SAVER_FOLDER) == FR_OK)
+-							save_written = Save_savefile((TCHAR *)SAV_info_buffer,savefilesize);
+-						break;
+-					}
+-					else if(keysdown & KEY_B){
+-						UIAudio_PlayBack();
+-						discard_save = 1;
+-						break;
+-					}
+-				}
+-			}
+-			if(save_written || discard_save)
+-			{
+-				memset(SAV_info_buffer,0x00,sizeof(SAV_info_buffer));//clean flag
+-				Save_sav_info(SAV_info_buffer,0x200);
+-			}
+-			else
+-				Show_error_num(5);
+-
+-	}
++    u32 savefilesize, res, i;
++    if(Read_sav_info(0)!=0x11)return;
++    UIAudio_StopForSharedBufferUse();
++    savefilesize=Read_sav_info(1)<<9;
++    for(i=0;i<0x200/2;i++)((u16*)SAV_info_buffer)[i]=Read_sav_info(i+2);
++    /* Slot: Advanced keeps the already-visible splash while writing. No
++       artwork loads or modal save popup may replace it. Never clear a failed
++       write's pending marker: the next startup must be able to retry. */
++    res=f_mkdir(SAVER_FOLDER);
++    if((res==FR_OK || res==FR_EXIST) && f_chdir(SAVER_FOLDER)==FR_OK &&
++       Save_savefile((TCHAR*)SAV_info_buffer,savefilesize)) {
++        memset(SAV_info_buffer,0,sizeof(SAV_info_buffer));
++        Save_sav_info(SAV_info_buffer,0x200);
++    } else Show_error_num(5);
+ }
+ //---------------------------------------------------------------------------------
+ void Set_saveMODE(BYTE saveMODE)
+@@ -14126,1786 +13791,44 @@
+ //---------------------------------------------------------------------------------
+ #include "system_browser.h"
+ 
++#include "slot_frontend.h"
++
+ int main(void) {
+-
+-	irqInit();
+-	irqEnable(IRQ_VBLANK);
+-
+-	REG_IME = 1;
+-
+-	u32 res;
+-	u32 game_folder_total = 0;
+-	u32 file_select;
+-	u32 show_offset;
+-	u32 updata;
+-	u32 continue_MENU;
+-	PAGE_NUM page_num=SD_list;
+-	u32 page_mode;
+-	u32 shift;
+-	u32 startup_resume_pending = 0;
+-	u32 startup_quicklaunch_pending = 0;
+-	u16 startup_keys_held = 0;
+-	u32 launcher_last_played_launch_pending = 0;
+-	u32 start_screen_pending = 1;
+-	u32 resume_last_found = 0;
+-
+-	u8 error_num;
+-
+-	//TCHAR savfilename[100];
+-	//BYTE saveMODE;
+-
+-	gl_currentpage = 0x8002 ;//kernel mode
+-
+-	SetMode (MODE_3 | BG2_ENABLE | 0x0080);
+-
+-	SD_Disable();
+-	Set_RTC_status(1);
+-
+-	//check FW
+-	Check_FW_update();
+-
+-
+-	Launcher_DrawPackedSplash();
+-	UIAudio_Init();
+-	UIAudio_PlayStartup();
+-	scanKeys();
+-	startup_keys_held = keysHeld();
+-	startup_quicklaunch_pending = 0;
+-	Launcher_RevealSplash();
+-	CheckLanguage();
+-	CheckSwitch();
+-	Launcher_InitThumbCache();
+-
+-	res = f_mount(&EZcardFs, "", 1);
+-	if( res != FR_OK)
+-	{
+-		DrawHZText12(gl_init_error,0,2,20, gl_color_cheat_black,1);
+-		DrawHZText12(gl_power_off,0,2,33, gl_color_cheat_black,1);
+-		while(1);
+-	}
+-	else
+-	{
+-	}
+-	Launcher_BeginBootSettings();
+-	Launcher_LoadTheme();
+-	Launcher_ReadLanguageSetting();
+-	Launcher_ReadSystemName();
+-	Launcher_ReadThumbnailStyle();
+-	Launcher_ReadSoundsSetting();
+-	Launcher_ReadHideSystemFilesSetting();
+-	Launcher_ReadListFoldersSetting();
+-	Launcher_ReadWrapAroundSetting();
+-	Launcher_ReadMotionSettings();
+-	Launcher_ReadClockFormatSetting();
+-	Launcher_ReadViewModeSetting();
+-	Launcher_ReadListArtPositionSetting();
+-	Launcher_ReadArtBorderSetting();
+-	Launcher_ReadRoundedCornersSetting();
+-	Launcher_ReadVerticalSideSetting();
+-	Launcher_ReadHorizontalSideSetting();
+-	Launcher_ReadAutoStartKey();
+-	Launcher_ReadStartSource();
+-	Launcher_ReadBootToSetting();
+-    launcher_boot_settings_active = 0;
+-	Launcher_LoadFavourites();
+-	Read_last_launch_mode();
+-	Launcher_SaveMigratedSettingsIfNeeded();
+-	startup_quicklaunch_pending = (startup_keys_held & Launcher_AutoStartKeyMask()) ? 1 : 0;
+-
+-	Check_save_flag();
+-
+-	f_chdir("/");
+-	//TCHAR currentpath[MAX_path_len];
+-	memset(currentpath,00,MAX_path_len);
+-	memset(currentpath_temp,0x00,MAX_path_len);
+-	folder_select = 1;
+-	memset(p_folder_select_show_offset,0x00,sizeof(p_folder_select_show_offset));
+-	memset(p_folder_select_file_select,0x00,sizeof(p_folder_select_file_select));
+-	gl_nor_show_offset_saved = 0;
+-	gl_nor_file_select_saved = 0;
+-
+-	res = f_getcwd(currentpath, sizeof currentpath / sizeof *currentpath);
+-	if((gl_resume_last_on || startup_quicklaunch_pending) && Read_last_played_entry(currentpath, sizeof currentpath, current_filename, sizeof current_filename))
+-	{
+-		folder_select = Get_path_depth(currentpath);
+-		f_chdir(currentpath);
+-		startup_resume_pending = gl_resume_last_on ? 1 : 0;
+-		resume_last_found = gl_resume_last_on ? 1 : 0;
+-	}
+-	else
+-	{
+-		memset(current_filename, 0x00, sizeof(current_filename));
+-	}
+-	Launcher_SaveSDState();
+-
+-	Read_NOR_info();
+-	gl_norOffset = 0x000000;
+-	game_total_NOR = GetFileListFromNor();//initialize to prevent direct writes to NOR without page turning
+-	if(game_total_NOR==0)
+-	{
+-		memset(pNorFS,00,sizeof(FM_NOR_FS)*MAX_NOR);
+-		Save_NOR_info((u16*)pNorFS,sizeof(FM_NOR_FS)*MAX_NOR);
+-	}
+-
+-refind_file:
+-	/* Directory records live in the reserved tail of PSRAM page zero. */
+-	SetPSRampage(0);
+-	Launcher_ResetThumbCache();
+-	if((page_num == SD_list) || (page_num == NOR_list))
+-		launcher_force_full_redraw = 1;
+-
+-
+-	if(page_num== SD_list)
+-	{
+-		Launcher_RestoreSDState();
+-		folder_total = 0;
+-		game_total_SD = 0;
+-		game_folder_total = 0;
+-		launcher_sd_launchable_file_count = 0;
+-
+-		if(recents_view_active)
+-		{
+-			game_total_SD = recents_view_favourites ? Build_favourites_virtual_list() : Build_recent_virtual_list();
+-			launcher_sd_launchable_file_count = game_total_SD;
+-			game_folder_total = game_total_SD;
+-		}
+-		else
+-		{
+-			res = f_opendir(&dir,currentpath);
+-			if (res == FR_OK)
+-			{
+-				while(1)
+-				{
+-					res = f_readdir(&dir, &fileinfo);                   //read next
+-					//DEBUG_printf("=%x %s %x %x",res, fileinfo.fname,fileinfo.fname[0],fileinfo.fattrib);
+-					//wait_btn();
+-					if (res != FR_OK || fileinfo.fname[0] == 0) break;
+-					if(Launcher_ShouldHideSystemEntry(currentpath, fileinfo.fname, fileinfo.fattrib))
+-						continue;
+-
+-					if(	(fileinfo.fattrib == AM_DIR) || (fileinfo.fattrib == 0x30))//DIR and exFAT dir
+-					{
+-						if ( folder_total >= MAX_folder )//cut
+-							continue;
+-						memcpy(pFolder[folder_total].filename,fileinfo.fname,100);
+-						pFolder[folder_total++].filename[99] = 0;
+-					}
+-					else if(	(fileinfo.fattrib == AM_ARC) || (fileinfo.fattrib == 0x21) )
+-					{
+-						if ( game_total_SD >= MAX_files )//cut
+-							continue;
+-						Launcher_StoreFileRecord(game_total_SD, fileinfo.fname, fileinfo.fsize);
+-						if(launcher_list_folders && (launcher_sd_launchable_file_count == 0) &&
+-						Launcher_IsGameFilename(fileinfo.fname))
+-							launcher_sd_launchable_file_count = 1;
+-						game_total_SD++;
+-					}
+-				}
+-				f_closedir(&dir);
+-			}
+-
+-			game_folder_total = folder_total + game_total_SD;
+-
+-			Sort_folder(folder_total);//folder
+-			Sort_file(game_total_SD);//file
+-		}
+-  }  else
+-  {
+-		recents_view_active = 0;
+-	Read_NOR_info();
+-		gl_norOffset = 0x000000;
+-		game_total_NOR = GetFileListFromNor();
+-  }
+-
+-  if(page_num==SD_list)
+-  {
+-		if(recents_view_active)
+-		{
+-			file_select = recents_saved_file_select;
+-			show_offset = recents_saved_show_offset;
+-		}
+-		else{
+-			/* Restore the saved SD selection for every folder level, including
+-			the root.  Settings -> SD previously fell back to 0/0 at root,
+-			unlike NOR -> SD, so the highlighted item was lost. */
+-			file_select = p_folder_select_file_select[folder_select];
+-			show_offset = p_folder_select_show_offset[folder_select];
+-		}
+-		if(startup_resume_pending || startup_quicklaunch_pending)
+-		{
+-			if(Apply_last_played_selection(&show_offset, &file_select))
+-			{
+-				p_folder_select_show_offset[folder_select] = show_offset;
+-				p_folder_select_file_select[folder_select] = file_select;
+-			}
+-			startup_resume_pending = 0;
+-		}
+-
+-		/* Clamp restored SD selection after changing folders so the launcher
+-		cannot point past the rebuilt directory contents and render blank. */
+-		if((show_offset + file_select >= game_folder_total) &&
+-		!(launcher_wrap_around && (game_folder_total > 10) && (show_offset < game_folder_total) && (file_select < 10)))
+-		{
+-			if(game_folder_total == 0)
+-			{
+-				show_offset = 0;
+-				file_select = 0;
+-			}
+-			else if(game_folder_total <= 10)
+-			{
+-				show_offset = 0;
+-				file_select = game_folder_total - 1;
+-			}
+-			else
+-			{
+-				show_offset = game_folder_total - 10;
+-				file_select = 9;
+-			}
+-		}
+-  }
+-  else
+-  {
+-		show_offset = gl_nor_show_offset_saved;
+-		file_select = gl_nor_file_select_saved;
+-		if(file_select > 9) file_select = 9;
+-		if((show_offset + file_select >= game_total_NOR) &&
+-		!(launcher_wrap_around && (game_total_NOR > 10) && (show_offset < game_total_NOR) && (file_select < 10)))
+-		{
+-			if(game_total_NOR == 0)
+-			{
+-				show_offset = 0;
+-				file_select = 0;
+-			}
+-			else if(game_total_NOR <= 10)
+-			{
+-				show_offset = 0;
+-				file_select = game_total_NOR - 1;
+-			}
+-			else
+-			{
+-				show_offset = game_total_NOR - 10;
+-				file_select = 9;
+-			}
+-		}
+-  }
+-	if(startup_quicklaunch_pending && (page_num == SD_list) && game_folder_total && (show_offset + file_select >= folder_total))
+-	{
+-		u16 old_boot_mode_pref = gl_boot_mode_pref;
+-		gl_boot_mode_pref = Read_last_launch_mode() ? 0x2 : 0x1;
+-		startup_quicklaunch_pending = 0;
+-		Launcher_EndSplash();
+-		UIAudio_StopForSharedBufferUse();
+-		res = SD_list_MENU(show_offset, file_select, 0xBB);
+-		gl_boot_mode_pref = old_boot_mode_pref;
+-		if(res)
+-		{
+-			if(res == 2)
+-			{
+-				recents_view_active = 0;
+-				page_num = NOR_list;
+-			}
+-			goto refind_file;
+-		}
+-	}
+-	startup_quicklaunch_pending = 0;
+-
+-	if(launcher_last_played_launch_pending && (page_num == SD_list) && game_folder_total && (show_offset + file_select >= folder_total))
+-	{
+-		launcher_last_played_launch_pending = 0;
+-		UIAudio_StopForSharedBufferUse();
+-		Launcher_FlushInputForModal();
+-		res = SD_list_MENU(show_offset, file_select, 0xBB);
+-		if(res)
+-		{
+-			if(res == 2)
+-			{
+-				recents_view_active = 0;
+-				page_num = NOR_list;
+-			}
+-			goto refind_file;
+-		}
+-
+-		/* Last Played was launched from the start screen.  If the boot
+-		menu is cancelled, return to the start screen instead of falling
+-		through to the SD list.  The boot menu itself is drawn over the
+-		existing start screen because the SD list has not been redrawn. */
+-		page_num = START_win;
+-		launcher_start_selected = 0;
+-		launcher_force_full_redraw = 1;
+-		goto re_showfile;
+-	}
+-	launcher_last_played_launch_pending = 0;
+-
+-	if(start_screen_pending)
+-	{
+-		/* If Resume last is enabled and a recent entry was found, keep the
+-		original behaviour of going straight to that SD folder/selection
+-		instead of showing the new start screen. */
+-		if(launcher_boot_target == LAUNCHER_BOOT_TO_NOR)
+-		{
+-			recents_view_active = 0;
+-			page_num = NOR_list;
+-			launcher_start_selected = 2;
+-			launcher_force_full_redraw = 1;
+-		}
+-		else if((launcher_boot_target == LAUNCHER_BOOT_TO_RECENTS) ||
+-		(launcher_boot_target == LAUNCHER_BOOT_TO_FAVOURITES))
+-		{
+-			recents_view_active = 1;
+-			strncpy(recents_return_path, "/", sizeof(recents_return_path) - 1);
+-			recents_return_path[sizeof(recents_return_path) - 1] = '\0';
+-			recents_return_show_offset = 0;
+-			recents_return_file_select = 0;
+-			recents_return_folder_select = 1;
+-			Launcher_SetRecentVirtualMode(launcher_boot_target == LAUNCHER_BOOT_TO_FAVOURITES);
+-			page_num = SD_list;
+-			launcher_start_selected = 0;
+-			launcher_force_full_redraw = 1;
+-			start_screen_pending = 0;
+-			goto refind_file;
+-		}
+-		else if(launcher_start_screen_off || resume_last_found || launcher_boot_target == LAUNCHER_BOOT_TO_SD)
+-		{
+-			page_num = SD_list;
+-			launcher_start_selected = 0;
+-			launcher_force_full_redraw = 1;
+-		}
+-		else
+-		{
+-			page_num = START_win;
+-		}
+-		start_screen_pending = 0;
+-	}
+-
+-	continue_MENU = 0;
+-
+-	u32 haveThumbnail;
+-	u32 is_GBA_old=0;
+-	u32 is_GBA;
+-
+-	u32 play_re;
+-	play_re = 0xBB;
+-//NOR_list:
+-//SD_list:
+-re_showfile:
+-    Launcher_EndLaunchIndicator();
+-	/* Fade only after startup work and directory preparation are complete. */
+-	Launcher_EndSplash();
+-	launcher_active_page = page_num;
+-	Launcher_UpdateEffectiveViewMode();
+-	Launcher_ResetThumbCache();
+-
+-	shift =0;
+-	page_mode=0;
+-  updata=1;
+-	static u32 sd_topbar_initialised = 0;
+-	static u32 nor_topbar_initialised = 0;
+-	if(launcher_force_full_redraw)
+-	{
+-		if(page_num == SD_list)
+-		{
+-			Launcher_DrawThemeBGFull(Launcher_GetBGImage());
+-			sd_topbar_initialised = 1;
+-			launcher_system_name_dirty = 1;
+-		}
+-		else if(page_num == NOR_list)
+-		{
+-			Launcher_DrawThemeBGFull(Launcher_GetBGImage());
+-			nor_topbar_initialised = 1;
+-			launcher_system_name_dirty = 1;
+-		}
+-		launcher_force_full_redraw = 0;
+-	}
+-	u32 select_tap_pending = 0;
+-	u32 select_tap_timer = 0;
+-	u32 select_double_handled = 0;
+-	if(launcher_suppress_next_select_cycle)
+-	{
+-		select_double_handled = 1;
+-		launcher_select_release_cooldown = 60;
+-		launcher_suppress_next_select_cycle = 0;
+-	}
+-	u32 start_hold_frames = 0;
+-	u32 start_long_delete_done = 0;
+-	u32 launcher_nav_repeat_delay = 0;
+-	u32 launcher_wrap_old_file_select = 0;
+-	setRepeat(5,1);
+-
+-	/* Do not redraw the full SD background here. Folder enter/exit should
+-	fall through to the targeted updata==1 redraw path below so the clock
+-	and file counter bands can be preserved. On the very first SD load,
+-	however, we still need to paint the whole top bar background once. */
+-	while(1)
+-	{
+-		while(1)//2
+-		{
+-            if((page_num == SD_list || page_num == NOR_list) && Launcher_ApplyPendingAutoTheme())
+-            {
+-                launcher_force_full_redraw = 1;
+-                launcher_system_name_dirty = 1;
+-                gl_clock_dirty = 1;
+-                goto re_showfile;
+-            }
+-			VBlankIntrWait();
+-			VBlankIntrWait();
+-			if(shift==0){
+-				dwName =0;
+-			}
+-			shift++;
+-
+-			haveThumbnail = 0;
+-			is_GBA = 0;
+-			launcher_active_page = page_num;
+-
+-			if(updata && launcher_effective_show_thumbnail && ((page_num == SD_list) || (page_num == NOR_list)))
+-			{
+-				u32 absolute_index = Launcher_ResolveListEntryIndex(show_offset + file_select);
+-				LauncherEntryInfo selected_info;
+-
+-				memset(&selected_info, 0, sizeof(selected_info));
+-				selected_info.thumb_data = pReadCache + 0x10036;
+-				if(launcher_cache_center_index != absolute_index)
+-					Launcher_BuildThumbCache(absolute_index);
+-				Launcher_GetEntryInfo(absolute_index, &selected_info);
+-
+-				if(selected_info.name && !selected_info.is_folder)
+-				{
+-					if(Launcher_IsNORPage())
+-					{
+-						is_GBA = 1;
+-						haveThumbnail = launcher_cache_selected.has_thumbnail;
+-					}
+-					else
+-					{
+-						u32 strlengba = strlen(selected_info.name);
+-						if((strlengba >= 3) && !strcasecmp(&(selected_info.name[strlengba-3]), "gba"))
+-						{
+-							is_GBA = 1;
+-							haveThumbnail = launcher_cache_selected.has_thumbnail;
+-						}
+-					}
+-				}
+-				else if(is_GBA_old==1)
+-				{
+-					updata = 1;
+-				}
+-
+-				is_GBA_old = is_GBA;
+-			}
+-	if(updata==1){//reshow all
+-		u32 popup_list_restored = 0;
+-		if(page_num==SD_list)
+-		{
+-			if(launcher_restore_popup_region)
+-			{
+-				Launcher_RestorePopupRegionForPage(page_num,
+-				launcher_cache_prev.valid && launcher_cache_prev.has_thumbnail);
+-				if(Launcher_IsListLikeMode())
+-				{
+-					Launcher_RestoreListPopupContent(show_offset, file_select);
+-					popup_list_restored = 1;
+-				}
+-				launcher_restore_popup_region = 0;
+-				launcher_counter_valid = 0;
+-			}
+-			if(!sd_topbar_initialised)
+-			{
+-				Launcher_DrawThemeBGFull(Launcher_GetBGImage());
+-				sd_topbar_initialised = 1;
+-			}
+-			else
+-			{
+-				/* Preserve the custom top-bar name.  Clearing this band on every
+-				SD refresh made /SYSTEM/NAME.TXT disappear or flicker while
+-				moving around the list/thumbnail views. */
+-				if(!launcher_system_name[0])
+-					Launcher_ClearWithThemeBG(Launcher_GetBGImage(),0, 0, 90, 20);
+-			}
+-			gl_clock_dirty = 1;
+-			if(Launcher_IsListLikeMode() && !popup_list_restored)
+-			{
+-				Launcher_ClearTextBodyBackground();
+-			}
+-			else if(game_folder_total == 0)
+-			{
+-				/* In the modern thumbnail launchers, an empty folder would otherwise
+-				skip the draw path entirely and leave the previous folder contents
+-				visible. Clear the launcher body so the new empty state is obvious. */
+-				Launcher_ClearWithThemeBG(Launcher_GetBGImage(),0, 20, 240, 160-20);
+-				Launcher_DrawEmptyCarouselMessage(Launcher_EmptyBrowserMessage());
+-			}
+-			if(Launcher_IsListLikeMode() && !popup_list_restored)
+-			{
+-				if(Launcher_IsListArtMode())
+-					Launcher_DrawListBodyFromCache(show_offset, file_select, 1);
+-				else
+-					Launcher_DrawListBodyFromCache(show_offset, file_select, 0);
+-				if(game_folder_total == 0)
+-					Launcher_DrawEmptyListMessage(Launcher_EmptyBrowserMessage());
+-			}
+-		}
+-		else if(page_num==START_win)/* start screen */
+-		{
+-					res = Launcher_StartWindow();
+-					if(res == 4){
+-						TCHAR saved_path[MAX_path_len];
+-						TCHAR saved_filename[200];
+-						u32 saved_folder_select = folder_select;
+-						u32 saved_show_offset = show_offset;
+-						u32 saved_file_select = file_select;
+-						u8 menu_res;
+-
+-						memset(saved_path, 0x00, sizeof(saved_path));
+-						memset(saved_filename, 0x00, sizeof(saved_filename));
+-						strncpy(saved_path, currentpath, sizeof(saved_path) - 1);
+-						strncpy(saved_filename, current_filename, sizeof(saved_filename) - 1);
+-
+-						if(Launcher_PrepareLastPlayedForMenu())
+-						{
+-							/* Open/launch the recent game directly through the recent-entry path.
+-							p_recently_play[0] is prepared as the latest game whenever the start
+-							screen is entered, so this no longer depends on the hidden SD cursor
+-							or a previously-built Recently Played screen. */
+-							while(1)
+-							{
+-								UIAudio_StopForSharedBufferUse();
+-								Launcher_FlushInputForModal();
+-								menu_res = SD_list_MENU(0, 0, 0);
+-
+-								/* SD_list_MENU temporarily switches currentpath/current_filename to the
+-								recent game.  If it returns, restore the user's actual SD browsing
+-								state so launching from the start screen never moves the SD view. */
+-								strncpy(currentpath, saved_path, sizeof(currentpath) - 1);
+-								currentpath[sizeof(currentpath) - 1] = '\0';
+-								strncpy(current_filename, saved_filename, sizeof(current_filename) - 1);
+-								current_filename[sizeof(current_filename) - 1] = '\0';
+-								folder_select = saved_folder_select;
+-								show_offset = saved_show_offset;
+-								file_select = saved_file_select;
+-								f_chdir(currentpath);
+-
+-								if(menu_res)
+-								{
+-									if(menu_res == 2)
+-									{
+-										recents_view_active = 0;
+-										page_num = NOR_list;
+-									}
+-									goto refind_file;
+-								}
+-
+-								if(!launcher_reopen_sd_menu_after_redraw)
+-									break;
+-
+-								launcher_reopen_sd_menu_after_redraw = 0;
+-								if(launcher_reopen_from_cheat_screen)
+-								{
+-									launcher_reopen_from_cheat_screen = 0;
+-									launcher_restore_popup_region = 0;
+-									launcher_start_window_preserved = 0;
+-									Launcher_DrawStartWindow(0);
+-								}
+-								else
+-								{
+-									launcher_restore_popup_region = 0;
+-									launcher_start_window_preserved = 1;
+-								}
+-								if(!Launcher_PrepareLastPlayedForMenu())
+-									break;
+-							}
+-
+-							launcher_start_selected = 0;
+-							page_num = START_win;
+-							if(launcher_restore_popup_region)
+-							{
+-								launcher_restore_popup_region = 0;
+-								launcher_start_window_preserved = 1;
+-								launcher_force_full_redraw = 0;
+-							}
+-							else
+-							{
+-								launcher_force_full_redraw = 1;
+-							}
+-							goto re_showfile;
+-						}
+-						else
+-						{
+-							launcher_start_selected = 0;
+-							page_num = START_win;
+-						}
+-					}
+-					else if(res == 2){
+-						recents_view_active = 0;
+-						page_num = NOR_list;
+-						launcher_force_full_redraw = 1;
+-					}
+-					else if(res == 1){
+-						Launcher_DrawThemeBGFull((const u16*)gImage_SET);
+-						page_num = SET_win;
+-					}
+-					else{
+-						launcher_sd_restore_pending = 1;
+-						page_num = SD_list;
+-						launcher_force_full_redraw = 1;
+-						launcher_vertical_folder_label_dirty = 1;
+-						goto refind_file;
+-					}
+-					launcher_vertical_folder_label_dirty = 1;
+-					goto re_showfile;
+-		}
+-		else if(page_num==SET_win)/* settings */
+-		{
+-					Launcher_DrawThemeBGFull((const u16*)gImage_SET);
+-					res = Launcher_SettingsWindow();
+-					Launcher_FlushInputForModal();
+-					if(res == 0)
+-					{
+-                        if(launcher_open_system_requested)
+-                        {
+-                            res = Launcher_OpenSystemFolder(&show_offset, &file_select, &folder_select);
+-                            if(res != FR_OK) { Show_error_num(0); goto re_showfile; }
+-                        }
+-                        else launcher_sd_restore_pending = 1;
+-						page_num = SD_list;
+-						launcher_start_selected = 1;
+-						launcher_force_full_redraw = 1;
+-						launcher_vertical_folder_label_dirty = 1;
+-						goto refind_file;
+-					}
+-					else if(res == 2)
+-					{
+-						recents_view_active = 0;
+-						page_num = NOR_list;
+-						launcher_start_selected = 2;
+-						launcher_force_full_redraw = 1;
+-					}
+-					else
+-					{
+-						if(launcher_start_screen_off)
+-						{
+-							launcher_sd_restore_pending = 1;
+-							page_num = SD_list;
+-							launcher_start_selected = 1;
+-							launcher_force_full_redraw = 1;
+-							goto refind_file;
+-						}
+-						else
+-						{
+-							launcher_start_selected = 3;
+-							page_num = START_win;
+-						}
+-					}
+-					launcher_vertical_folder_label_dirty = 1;
+-					goto re_showfile;
+-		}
+-		else if(page_num==HELP)//legacy help window, no longer reachable by shoulder navigation
+-		{
+-					UIAudio_StopForSharedBufferUse();
+-					Launcher_ShowHelpBOnly();
+-					Launcher_DrawThemeBGFull((const u16*)gImage_SET);
+-					page_num = SET_win;//
+-					goto re_showfile;
+-		}
+-		else
+-		{
+-			if(launcher_restore_popup_region)
+-			{
+-				Launcher_RestorePopupRegionForPage(page_num,
+-				launcher_cache_prev.valid && launcher_cache_prev.has_thumbnail);
+-				if(Launcher_IsListLikeMode())
+-				{
+-					Launcher_RestoreListPopupContent(show_offset, file_select);
+-					popup_list_restored = 1;
+-				}
+-				launcher_restore_popup_region = 0;
+-				launcher_counter_valid = 0;
+-			}
+-				if(!nor_topbar_initialised)
+-				{
+-				Launcher_DrawThemeBGFull(Launcher_GetBGImage());
+-					nor_topbar_initialised = 1;
+-				}
+-				else
+-				{
+-					/* Preserve the custom top-bar name during NOR refreshes as well. */
+-					if(!launcher_system_name[0])
+-						Launcher_ClearWithThemeBG(Launcher_GetBGImage(),0, 0, 90, 20);
+-				}
+-			gl_clock_dirty = 1;
+-				if(Launcher_IsListLikeMode() && !popup_list_restored)
+-				{
+-					Launcher_ClearTextBodyBackground();
+-				}
+-				else if(game_total_NOR == 0)
+-				{
+-					Launcher_ClearWithThemeBG(Launcher_GetBGImage(),0, 20, 240, 160-20);
+-				}
+-				if(Launcher_IsListLikeMode() && !popup_list_restored)
+-				{
+-					if(Launcher_IsListArtMode())
+-						Launcher_DrawListBodyFromCache(show_offset, file_select, game_total_NOR != 0);
+-					else
+-						Launcher_DrawListBodyFromCache(show_offset, file_select, 0);
+-				}
+-		}
+-		Show_game_num(Launcher_ResolveListEntryIndex(file_select+show_offset)+1,page_num,0);
+-		}
+-		else if((updata == 4) || (updata == 5))
+-		{
+-			if(Launcher_IsListArtMode())
+-			{
+-				Launcher_DrawListArtScrolledBody(show_offset, file_select, (updata == 4) ? 1 : -1);
+-			}
+-			else
+-			{
+-				Launcher_DrawScrolledSDListBody(show_offset, file_select);
+-			}
+-			Show_game_num(Launcher_ResolveListEntryIndex(file_select+show_offset)+1,page_num,0);
+-		}
+-		else if(updata == LAUNCHER_UPDATE_LIST_WRAP)
+-		{
+-			if(Launcher_IsListArtMode())
+-				Launcher_DrawListArtSelectionChange(show_offset, file_select, launcher_wrap_old_file_select);
+-			else
+-			{
+-				Launcher_DrawSDListRow(show_offset, launcher_wrap_old_file_select, file_select, 0);
+-				Launcher_DrawSDListRow(show_offset, file_select, file_select, 0);
+-			}
+-			Show_game_num(Launcher_ResolveListEntryIndex(file_select+show_offset)+1,page_num,0);
+-		}
+-		else if(updata >1){
+-		if(page_num==NOR_list)
+-		{
+-				if(Launcher_IsListLikeMode())
+-				{
+-					if(Launcher_IsListArtMode())
+-					{
+-						u32 old_line = (updata == 2) ? (file_select - 1) : (file_select + 1);
+-						Launcher_DrawListArtSelectionChange(show_offset, file_select, old_line);
+-					}
+-					else
+-					{
+-						u32 old_line = (updata == 2) ? (file_select - 1) : (file_select + 1);
+-						Launcher_DrawSDListRow(show_offset, old_line, file_select, 0);
+-						Launcher_DrawSDListRow(show_offset, file_select, file_select, 0);
+-					}
+-				}
+-		}
+-		else
+-		{
+-			if(Launcher_IsListLikeMode())
+-			{
+-				u32 old_line = (updata == 2) ? (file_select - 1) : (file_select + 1);
+-
+-				if(Launcher_IsListArtMode())
+-				{
+-					Launcher_DrawListArtSelectionChange(show_offset, file_select, old_line);
+-				}
+-				else
+-				{
+-					Launcher_DrawSDListRow(show_offset, old_line, file_select, 0);
+-					Launcher_DrawSDListRow(show_offset, file_select, file_select, 0);
+-				}
+-			}
+-		}
+-		Show_game_num(Launcher_ResolveListEntryIndex(file_select+show_offset)+1,page_num,0);
+-		}
+-
+-		if( updata && !Launcher_IsListLikeMode() && launcher_effective_show_thumbnail && ((page_num==SD_list) || (page_num==NOR_list)) && ((page_num==NOR_list) ? game_total_NOR : game_folder_total) )
+-		{
+-		if(launcher_effective_show_thumbnail == 1)
+-				Draw_ModernLauncher_SD(show_offset, file_select, haveThumbnail);
+-			else
+-			{
+-				Draw_ModernLauncher_SD_Vertical_State(show_offset, file_select);
+-			}
+-		}
+-		launcher_popup_restore_redraw = 0;
+-
+-			if(updata)
+-			{
+-				ShowTime(page_num,page_mode);
+-			}
+-
+-			if(launcher_reopen_sd_menu_after_redraw && (page_num == SD_list))
+-			{
+-				launcher_reopen_sd_menu_after_redraw = 0;
+-				launcher_reopen_from_cheat_screen = 0;
+-				{
+-					u32 selected_index = Launcher_ResolveListEntryIndex(show_offset + file_select);
+-					res = SD_list_MENU(selected_index, 0, recents_view_active ? selected_index : play_re);
+-				}
+-				if(res)
+-				{
+-					if(res == 2)
+-					{
+-						recents_view_active = 0;
+-						page_num = NOR_list;
+-					}
+-					goto refind_file;
+-				}
+-				goto re_showfile;
+-			}
+-
+-			if(continue_MENU) break;
+-			if(((page_num == SD_list) && game_folder_total) ||
+-			((page_num == NOR_list) && game_total_NOR))
+-			{
+-				if(Launcher_IsListLikeMode())
+-					Filename_loop(shift,show_offset,file_select,Launcher_IsListArtMode());
+-			}
+-	updata=0;
+-			scanKeys();
+-			u16 keysdown  = keysDown();
+-			u16 keys_released = keysUp();
+-			u16 keysheld = keysHeld();
+-			u16 keysrepeat = keysDownRepeat();
+-			u16 buffered_list_art_input = 0;
+-			u16 launcher_nav_repeat_mask = 0;
+-			u16 launcher_horz_step_forward = (LAUNCHER_HORZ_NAV_MODE == 1) ? KEY_DOWN : KEY_RIGHT;
+-			u16 launcher_horz_step_back = (LAUNCHER_HORZ_NAV_MODE == 1) ? KEY_UP : KEY_LEFT;
+-			u16 launcher_horz_jump_forward = (LAUNCHER_HORZ_NAV_MODE == 1) ? KEY_RIGHT : KEY_DOWN;
+-			u16 launcher_horz_jump_back = (LAUNCHER_HORZ_NAV_MODE == 1) ? KEY_LEFT : KEY_UP;
+-			u16 launcher_vert_step_forward = (LAUNCHER_VERT_NAV_MODE == 1) ? KEY_RIGHT : KEY_DOWN;
+-			u16 launcher_vert_step_back = (LAUNCHER_VERT_NAV_MODE == 1) ? KEY_LEFT : KEY_UP;
+-			u16 launcher_vert_jump_forward = (LAUNCHER_VERT_NAV_MODE == 1) ? KEY_DOWN : KEY_RIGHT;
+-			u16 launcher_vert_jump_back = (LAUNCHER_VERT_NAV_MODE == 1) ? KEY_UP : KEY_LEFT;
+-
+-			if(Launcher_IsListArtMode())
+-			{
+-				buffered_list_art_input = Launcher_ListArtTakeInput();
+-				if(buffered_list_art_input)
+-				{
+-					keysdown |= buffered_list_art_input;
+-					keysrepeat &= ~(KEY_UP | KEY_DOWN);
+-				}
+-			}
+-
+-			if((page_num == SD_list) || (page_num == NOR_list))
+-			{
+-				/* Keep held navigation from running at the maximum key-repeat rate in
+-				fast folders, but do not add the heavy delay that made thumbnail
+-				traversal feel sluggish.  One main-loop beat is enough to stop the
+-				almost-instant runaway scroll while preserving responsiveness. */
+-				/* Apply the same repeat limiter to step and page-jump navigation.
+-				Without this, a held jump direction can race around a wrapped list. */
+-				launcher_nav_repeat_mask = KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT;
+-
+-				if(!(keysheld & launcher_nav_repeat_mask))
+-					launcher_nav_repeat_delay = 0;
+-				else if(launcher_nav_repeat_delay)
+-				{
+-					keysrepeat &= ~(launcher_nav_repeat_mask & ~keysdown);
+-					launcher_nav_repeat_delay--;
+-				}
+-			}
+-
+-            if(launcher_carousel_animations && !Launcher_IsListLikeMode())
+-            {
+-                u16 queued = Launcher_MotionTakeInput();
+-                keysdown |= queued;
+-                keysrepeat |= queued;
+-                keys_released |= launcher_motion_released;
+-                launcher_motion_released = 0;
+-            }
+-			u16 audio_keysdown = keysdown;
+-			if(launcher_select_release_cooldown)
+-				launcher_select_release_cooldown--;
+-			if((audio_keysdown & KEY_A) &&
+-			(((page_num == SD_list) && (game_folder_total == 0)) ||
+-			 ((page_num == NOR_list) && (game_total_NOR == 0))))
+-				audio_keysdown &= ~KEY_A;
+-
+-            /* Folders accept immediately. Files defer audio until their action
+-               is resolved, so a launch does not also play the menu click. */
+-            if(audio_keysdown & KEY_A)
+-            {
+-                u32 index = Launcher_ResolveListEntryIndex(show_offset + file_select);
+-                if(page_num == NOR_list || (page_num == SD_list && index >= folder_total))
+-                    audio_keysdown &= ~KEY_A;
+-            }
+-			if((page_num == SD_list) || (page_num == NOR_list))
+-			{
+-				if(launcher_effective_show_thumbnail)
+-				{
+-					audio_keysdown &= ~(KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT);
+-				}
+-				if((page_num == NOR_list) || (page_num == SD_list))
+-					audio_keysdown &= ~(KEY_START | KEY_SELECT);
+-			}
+-
+-			UIAudio_HandleKeysEx(audio_keysdown, 0, 0, 0);
+-
+-			if((keysdown & KEY_SELECT) && launcher_select_release_cooldown)
+-			{
+-				select_double_handled = 1;
+-				select_tap_pending = 0;
+-				select_tap_timer = 0;
+-			}
+-			else if(keysdown & KEY_SELECT)
+-			{
+-				select_double_handled = 0;
+-				if(select_tap_pending && select_tap_timer)
+-				{
+-					u32 selected_index = Launcher_ResolveListEntryIndex(show_offset + file_select);
+-					select_double_handled = 1;
+-					select_tap_pending = 0;
+-					select_tap_timer = 0;
+-					launcher_select_release_cooldown = 20;
+-					if((page_num == SD_list) && !recents_view_active && (selected_index >= folder_total) &&
+-					Launcher_IsLaunchableFilename(pFilename_buffer[selected_index - folder_total].filename))
+-					{
+-						p_folder_select_show_offset[folder_select] = show_offset;
+-						p_folder_select_file_select[folder_select] = file_select;
+-						Launcher_SaveSDState();
+-						Launcher_ToggleFavourite(show_offset, file_select);
+-                        Launcher_RefreshFavouriteMarker(show_offset, file_select);
+-						Launcher_WaitForMenuKeyRelease(KEY_SELECT);
+-						select_tap_pending = 0;
+-						select_tap_timer = 0;
+-						select_double_handled = 1;
+-						launcher_select_release_cooldown = 40;
+-						shift = 0;
+-                        updata = 0;
+-                        continue;
+-					}
+-					else if((page_num == SD_list) && recents_view_active && recents_view_favourites && (selected_index < game_total_SD))
+-					{
+-						Launcher_ToggleFavouriteFullPath(p_recently_play[selected_index]);
+-						Launcher_WaitForMenuKeyRelease(KEY_SELECT);
+-						select_tap_pending = 0;
+-						select_tap_timer = 0;
+-						select_double_handled = 1;
+-						launcher_select_release_cooldown = 40;
+-						launcher_vertical_folder_label_dirty = 1;
+-						goto refind_file;
+-					}
+-				}
+-			}
+-			if(keysdown & KEY_START)
+-			{
+-				/* If the previous long-delete consumed its release inside the delete
+-				prompt, do not let that stale suppression eat a later genuine
+-				short START press. */
+-				launcher_start_release_suppressed = 0;
+-				start_hold_frames = 0;
+-				start_long_delete_done = 0;
+-			}
+-
+-			if(page_num==NOR_list)
+-			{
+-				list_game_total = game_total_NOR;
+-			}
+-			else
+-			{
+-				list_game_total = game_folder_total;
+-			}
+-
+-			if(select_tap_pending && select_tap_timer && launcher_select_release_cooldown)
+-			{
+-				select_tap_pending = 0;
+-				select_tap_timer = 0;
+-			}
+-			else if(select_tap_pending && select_tap_timer)
+-			{
+-				if(select_tap_timer > 2)
+-					select_tap_timer -= 2;
+-				else
+-				{
+-					select_tap_pending = 0;
+-					select_tap_timer = 0;
+-					Launcher_CycleViewModeAndRedraw(page_num, &show_offset, &file_select, &updata);
+-				}
+-			}
+-
+-
+-			u32 thumbnail_nav_handled = 0;
+-			if((launcher_effective_show_thumbnail == 2) && ((page_num==SD_list) || (page_num==NOR_list)))
+-			{
+-				if ((keysrepeat & launcher_vert_step_forward) || (keysrepeat & launcher_vert_step_back))
+-				{
+-					int move = (keysrepeat & launcher_vert_step_forward) ? 1 : -1;
+-					u32 changed = 0;
+-					u32 wrapped = 0;
+-
+-					if((move > 0) && ((show_offset + file_select + 1) < list_game_total))
+-					{
+-						if(file_select < 9)
+-							file_select++;
+-						else
+-							show_offset++;
+-						changed = 1;
+-					}
+-					else if((move < 0) && ((show_offset + file_select) > 0))
+-					{
+-						if(file_select > 0)
+-							file_select--;
+-						else if(show_offset > 0)
+-							show_offset--;
+-						changed = 1;
+-					}
+-					else if(launcher_wrap_around && (list_game_total > 1))
+-					{
+-						if(move > 0)
+-						{
+-							show_offset = 0;
+-							file_select = 0;
+-						}
+-						else if(list_game_total > 10)
+-						{
+-							show_offset = list_game_total - 10;
+-							file_select = 9;
+-						}
+-						else
+-						{
+-							show_offset = 0;
+-							file_select = list_game_total - 1;
+-						}
+-						changed = 1;
+-						wrapped = 1;
+-					}
+-
+-					if(changed)
+-					{
+-						UIAudio_PlaySfx(UI_SFX_MOVE);
+-						if(wrapped && !launcher_carousel_animations)
+-							Launcher_BuildThumbCache(show_offset + file_select);
+-						else
+-							Launcher_ShiftThumbCache(move, show_offset + file_select);
+-						launcher_nav_repeat_delay = Launcher_ThumbNavRepeatDelay();
+-						updata = LAUNCHER_UPDATE_CAROUSEL_SELECTION;
+-						shift = 0;
+-					}
+-					thumbnail_nav_handled = 1;
+-				}
+-				else if(keysrepeat & launcher_vert_jump_forward)
+-				{
+-					u32 absolute_index = show_offset + file_select;
+-					u32 new_absolute_index = absolute_index;
+-
+-					if(list_game_total)
+-					{
+-						if(launcher_wrap_around && (list_game_total > 1))
+-						{
+-							u32 jump = 10 % list_game_total;
+-							if(!jump)
+-								jump = 1;
+-							new_absolute_index = (absolute_index + jump) % list_game_total;
+-						}
+-						else
+-						{
+-							new_absolute_index += 10;
+-							if(new_absolute_index >= list_game_total)
+-								new_absolute_index = list_game_total - 1;
+-						}
+-					}
+-
+-					if(new_absolute_index != absolute_index)
+-					{
+-						UIAudio_PlaySfx(UI_SFX_MOVE);
+-						show_offset = (new_absolute_index / 10) * 10;
+-						file_select = new_absolute_index % 10;
+-						if((show_offset + file_select >= list_game_total) && list_game_total)
+-							file_select = (list_game_total - 1) - show_offset;
+-
+-						Launcher_BuildThumbCache(show_offset + file_select);
+-						launcher_nav_repeat_delay = Launcher_ThumbNavRepeatDelay();
+-						updata = LAUNCHER_UPDATE_CAROUSEL_SELECTION;
+-					}
+-					shift = 0;
+-					thumbnail_nav_handled = 1;
+-				}
+-				else if(keysrepeat & launcher_vert_jump_back)
+-				{
+-					u32 absolute_index = show_offset + file_select;
+-					u32 new_absolute_index = 0;
+-
+-					if(launcher_wrap_around && (list_game_total > 1))
+-					{
+-						u32 jump = 10 % list_game_total;
+-						if(!jump)
+-							jump = 1;
+-						new_absolute_index = (absolute_index + list_game_total - jump) % list_game_total;
+-					}
+-					else if(absolute_index >= 10)
+-						new_absolute_index = absolute_index - 10;
+-
+-					if(new_absolute_index != absolute_index)
+-					{
+-						UIAudio_PlaySfx(UI_SFX_MOVE);
+-						show_offset = (new_absolute_index / 10) * 10;
+-						file_select = new_absolute_index % 10;
+-
+-						Launcher_BuildThumbCache(show_offset + file_select);
+-						launcher_nav_repeat_delay = Launcher_ThumbNavRepeatDelay();
+-						updata = LAUNCHER_UPDATE_CAROUSEL_SELECTION;
+-					}
+-					shift = 0;
+-					thumbnail_nav_handled = 1;
+-				}
+-			}
+-			if((launcher_effective_show_thumbnail == 1) && ((page_num==SD_list) || (page_num==NOR_list)))
+-			{
+-				if ((keysrepeat & launcher_horz_step_forward) || (keysrepeat & launcher_horz_step_back))
+-				{
+-					int move = (keysrepeat & launcher_horz_step_forward) ? 1 : -1;
+-					u32 changed = 0;
+-					u32 wrapped = 0;
+-
+-					if((move > 0) && ((show_offset + file_select + 1) < list_game_total))
+-					{
+-						if(file_select < 9)
+-							file_select++;
+-						else
+-							show_offset++;
+-						changed = 1;
+-					}
+-					else if((move < 0) && ((show_offset + file_select) > 0))
+-					{
+-						if(file_select > 0)
+-							file_select--;
+-						else if(show_offset > 0)
+-							show_offset--;
+-						changed = 1;
+-					}
+-					else if(launcher_wrap_around && (list_game_total > 1))
+-					{
+-						if(move > 0)
+-						{
+-							show_offset = 0;
+-							file_select = 0;
+-						}
+-						else if(list_game_total > 10)
+-						{
+-							show_offset = list_game_total - 10;
+-							file_select = 9;
+-						}
+-						else
+-						{
+-							show_offset = 0;
+-							file_select = list_game_total - 1;
+-						}
+-						changed = 1;
+-						wrapped = 1;
+-					}
+-
+-					if(changed)
+-					{
+-						UIAudio_PlaySfx(UI_SFX_MOVE);
+-						if(wrapped && !launcher_carousel_animations)
+-							Launcher_BuildThumbCache(show_offset + file_select);
+-						else
+-							Launcher_ShiftThumbCache(move, show_offset + file_select);
+-						launcher_nav_repeat_delay = Launcher_ThumbNavRepeatDelay();
+-						updata = LAUNCHER_UPDATE_CAROUSEL_SELECTION;
+-						shift = 0;
+-					}
+-					thumbnail_nav_handled = 1;
+-				}
+-				else if(keysrepeat & launcher_horz_jump_forward)
+-				{
+-					u32 absolute_index = show_offset + file_select;
+-					u32 new_absolute_index = absolute_index;
+-
+-					if(list_game_total)
+-					{
+-						if(launcher_wrap_around && (list_game_total > 1))
+-						{
+-							u32 jump = 10 % list_game_total;
+-							if(!jump)
+-								jump = 1;
+-							new_absolute_index = (absolute_index + jump) % list_game_total;
+-						}
+-						else
+-						{
+-							new_absolute_index += 10;
+-							if(new_absolute_index >= list_game_total)
+-								new_absolute_index = list_game_total - 1;
+-						}
+-					}
+-
+-					if(new_absolute_index != absolute_index)
+-					{
+-						UIAudio_PlaySfx(UI_SFX_MOVE);
+-						show_offset = (new_absolute_index / 10) * 10;
+-						file_select = new_absolute_index % 10;
+-						if((show_offset + file_select >= list_game_total) && list_game_total)
+-							file_select = (list_game_total - 1) - show_offset;
+-
+-						Launcher_BuildThumbCache(show_offset + file_select);
+-						launcher_nav_repeat_delay = Launcher_ThumbNavRepeatDelay();
+-						updata = LAUNCHER_UPDATE_CAROUSEL_SELECTION;
+-					}
+-					shift = 0;
+-					thumbnail_nav_handled = 1;
+-				}
+-				else if(keysrepeat & launcher_horz_jump_back)
+-				{
+-					u32 absolute_index = show_offset + file_select;
+-					u32 new_absolute_index = 0;
+-
+-					if(launcher_wrap_around && (list_game_total > 1))
+-					{
+-						u32 jump = 10 % list_game_total;
+-						if(!jump)
+-							jump = 1;
+-						new_absolute_index = (absolute_index + list_game_total - jump) % list_game_total;
+-					}
+-					else if(absolute_index >= 10)
+-						new_absolute_index = absolute_index - 10;
+-
+-					if(new_absolute_index != absolute_index)
+-					{
+-						UIAudio_PlaySfx(UI_SFX_MOVE);
+-						show_offset = (new_absolute_index / 10) * 10;
+-						file_select = new_absolute_index % 10;
+-
+-						Launcher_BuildThumbCache(show_offset + file_select);
+-						launcher_nav_repeat_delay = Launcher_ThumbNavRepeatDelay();
+-						updata = LAUNCHER_UPDATE_CAROUSEL_SELECTION;
+-					}
+-					shift = 0;
+-					thumbnail_nav_handled = 1;
+-				}
+-			}
+-			if(!thumbnail_nav_handled && launcher_wrap_around && Launcher_IsListLikeMode() && (list_game_total > 1) &&
+-			(keysrepeat & (KEY_DOWN | KEY_UP | ((list_game_total > 10) ? (KEY_LEFT | KEY_RIGHT) : 0))))
+-			{
+-				launcher_wrap_old_file_select = file_select;
+-				if(keysrepeat & KEY_DOWN)
+-				{
+-					if(list_game_total > 10)
+-					{
+-						if(file_select < 9) { file_select++; updata = 2; }
+-						else { show_offset = (show_offset + 1) % list_game_total; updata = 4; }
+-					}
+-					else
+-					{
+-						file_select = (file_select + 1 < list_game_total) ? (file_select + 1) : 0;
+-						updata = (file_select == 0) ? LAUNCHER_UPDATE_LIST_WRAP : 2;
+-					}
+-					if(Launcher_IsListArtMode())
+-						Launcher_ShiftThumbCache(1, Launcher_ResolveListEntryIndex(show_offset + file_select));
+-				}
+-				else if(keysrepeat & KEY_UP)
+-				{
+-					if(list_game_total > 10)
+-					{
+-						if(file_select > 0) { file_select--; updata = 3; }
+-						else { show_offset = (show_offset + list_game_total - 1) % list_game_total; updata = 5; }
+-					}
+-					else
+-					{
+-						file_select = file_select ? (file_select - 1) : (list_game_total - 1);
+-						updata = (launcher_wrap_old_file_select == 0) ? LAUNCHER_UPDATE_LIST_WRAP : 3;
+-					}
+-					if(Launcher_IsListArtMode())
+-						Launcher_ShiftThumbCache(-1, Launcher_ResolveListEntryIndex(show_offset + file_select));
+-				}
+-				else if(keysrepeat & KEY_LEFT)
+-				{
+-					u32 absolute_index = Launcher_ResolveListEntryIndex(show_offset + file_select);
+-					u32 new_index = (absolute_index + list_game_total - (10 % list_game_total)) % list_game_total;
+-					show_offset = (new_index + list_game_total - file_select) % list_game_total;
+-					updata = 1;
+-					if(Launcher_IsListArtMode())
+-						Launcher_BuildThumbCache(Launcher_ResolveListEntryIndex(show_offset + file_select));
+-				}
+-				else
+-				{
+-					u32 absolute_index = Launcher_ResolveListEntryIndex(show_offset + file_select);
+-					u32 new_index = (absolute_index + (10 % list_game_total)) % list_game_total;
+-					show_offset = (new_index + list_game_total - file_select) % list_game_total;
+-					updata = 1;
+-					if(Launcher_IsListArtMode())
+-						Launcher_BuildThumbCache(Launcher_ResolveListEntryIndex(show_offset + file_select));
+-				}
+-				UIAudio_PlaySfx(UI_SFX_MOVE);
+-				launcher_nav_repeat_delay = Launcher_ListNavRepeatDelay();
+-				shift = 0;
+-				thumbnail_nav_handled = 1;
+-			}
+-			/* A list shorter than one page has nowhere to page-jump.  Consume the
+-			jump input without moving so holding it cannot flash between its ends. */
+-			if(!thumbnail_nav_handled && launcher_wrap_around && Launcher_IsListLikeMode() &&
+-			(list_game_total <= 10) && (keysrepeat & (KEY_LEFT | KEY_RIGHT)))
+-				thumbnail_nav_handled = 1;
+-			if(!thumbnail_nav_handled && (keysrepeat  & KEY_DOWN)) {
+-				if (file_select + show_offset+1 < (list_game_total )) {
+-	if ( file_select > 8 ){
+-	if ( file_select == 9 ) {
+-	show_offset++;
+-	updata=((page_num == SD_list) && Launcher_IsListLikeMode()) ? 4 : 1;
+-	}
+-	}else{
+-	file_select++;
+-	updata=2;
+-	}
+-					UIAudio_PlaySfx(UI_SFX_MOVE);
+-						launcher_nav_repeat_delay = Launcher_ListNavRepeatDelay();
+-					shift = 0;
+-					if(Launcher_IsListArtMode())
+-						Launcher_ShiftThumbCache(1, show_offset + file_select);
+-				}
+-				else if(launcher_wrap_around && (list_game_total > 1))
+-				{
+-					show_offset = 0;
+-					file_select = 0;
+-					updata = 1;
+-					UIAudio_PlaySfx(UI_SFX_MOVE);
+-					launcher_nav_repeat_delay = Launcher_ListNavRepeatDelay();
+-					shift = 0;
+-					if(Launcher_IsListArtMode())
+-						Launcher_BuildThumbCache(0);
+-				}
+-			}
+-			else if(!thumbnail_nav_handled && (keysrepeat & KEY_UP))
+-			{
+-				if (file_select ) {
+-					file_select--;
+-					updata=3;
+-					UIAudio_PlaySfx(UI_SFX_MOVE);
+-						launcher_nav_repeat_delay = Launcher_ListNavRepeatDelay();
+-				}else{
+-					if (show_offset){
+-						show_offset--;
+-						updata=((page_num == SD_list) && Launcher_IsListLikeMode()) ? 5 : 1;
+-						UIAudio_PlaySfx(UI_SFX_MOVE);
+-						launcher_nav_repeat_delay = Launcher_ListNavRepeatDelay();
+-					}
+-				}
+-				shift = 0;
+-				if(Launcher_IsListArtMode() && ((updata == 3) || (updata == 5)))
+-					Launcher_ShiftThumbCache(-1, show_offset + file_select);
+-				if(!updata && launcher_wrap_around && (list_game_total > 1))
+-				{
+-					if(list_game_total > 10)
+-					{
+-						show_offset = list_game_total - 10;
+-						file_select = 9;
+-					}
+-					else
+-					{
+-						show_offset = 0;
+-						file_select = list_game_total - 1;
+-					}
+-					updata = 1;
+-					UIAudio_PlaySfx(UI_SFX_MOVE);
+-					launcher_nav_repeat_delay = Launcher_ListNavRepeatDelay();
+-					if(Launcher_IsListArtMode())
+-						Launcher_BuildThumbCache(show_offset + file_select);
+-				}
+-			}
+-			else if(!thumbnail_nav_handled && (keysrepeat & KEY_LEFT))
+-			{
+-		if ( show_offset )
+-		{
+-		if ( show_offset > 9 )
+-		show_offset -= 10;
+-		else
+-		show_offset = 0;
+-
+-		updata=1;
+-		UIAudio_PlaySfx(UI_SFX_MOVE);
+-						launcher_nav_repeat_delay = Launcher_ListNavRepeatDelay();
+-		}
+-		else{
+-			if(file_select){
+-				file_select=0;
+-				updata=1;
+-				UIAudio_PlaySfx(UI_SFX_MOVE);
+-						launcher_nav_repeat_delay = Launcher_ListNavRepeatDelay();
+-				}
+-			else if(launcher_wrap_around && (list_game_total > 10))
+-			{
+-				if(list_game_total > 10)
+-				{
+-					show_offset = list_game_total - 10;
+-					file_select = 9;
+-				}
+-				else
+-				{
+-					show_offset = 0;
+-					file_select = list_game_total - 1;
+-				}
+-				updata=1;
+-				UIAudio_PlaySfx(UI_SFX_MOVE);
+-				launcher_nav_repeat_delay = Launcher_ListNavRepeatDelay();
+-				if(Launcher_IsListArtMode())
+-					Launcher_BuildThumbCache(show_offset + file_select);
+-			}
+-		}
+-		shift = 0;
+-			}
+-			else if(!thumbnail_nav_handled && (keysrepeat & KEY_RIGHT))
+-			{
+-	if ( show_offset + 10 < list_game_total )
+-	{
+-	if ( show_offset + 20 <= list_game_total )
+-	show_offset += 10;
+-	else
+-	show_offset = list_game_total - 10;
+-
+-					updata=1;
+-					UIAudio_PlaySfx(UI_SFX_MOVE);
+-						launcher_nav_repeat_delay = Launcher_ListNavRepeatDelay();
+-	}
+-	else if(launcher_wrap_around && (list_game_total > 10) && (show_offset + file_select + 1 >= list_game_total))
+-	{
+-		show_offset = 0;
+-		file_select = 0;
+-		updata=1;
+-		UIAudio_PlaySfx(UI_SFX_MOVE);
+-		launcher_nav_repeat_delay = Launcher_ListNavRepeatDelay();
+-		if(Launcher_IsListArtMode())
+-			Launcher_BuildThumbCache(0);
+-	}
+-	shift = 0;
+-			}
+-			else if((keysheld & KEY_START) && !start_long_delete_done)
+-			{
+-				if(start_hold_frames < 120)
+-					start_hold_frames += 2;
+-				if(start_hold_frames >= 120)
+-				{
+-					u32 selected_index = Launcher_ResolveListEntryIndex(show_offset + file_select);
+-					start_long_delete_done = 1;
+-					if((page_num == SD_list) && !recents_view_active && (selected_index >= folder_total))
+-					{
+-						UIAudio_PlaySfx(UI_SFX_MENU);
+-						u32 delete_confirmed;
+-						/* Preserve the current SD cursor before the delete popup.  The
+-						rebuilt list restores from these per-folder slots, so without
+-						this a cancel can jump back to the start of the folder. */
+-						p_folder_select_show_offset[folder_select] = show_offset;
+-						p_folder_select_file_select[folder_select] = file_select;
+-						Launcher_SaveSDState();
+-						delete_confirmed = SD_list_L_START(selected_index, 0, folder_total);
+-						launcher_start_release_suppressed = 1;
+-						/* A long START hold is now delete, while a short START tap opens
+-						Recently Played.  Consume the held START before returning to
+-						the file list so the key-up cannot be interpreted as the
+-						short-press Recently Played action after cancel/delete. */
+-						Launcher_WaitForMenuKeyRelease(KEY_START);
+-						/* Keep the long-press state latched until the following KEY_START
+-						release is observed by the main loop. */
+-						start_hold_frames = 120;
+-						start_long_delete_done = 1;
+-						launcher_vertical_folder_label_dirty = 1;
+-						if(delete_confirmed)
+-							goto refind_file;
+-						goto re_showfile;
+-					}
+-				}
+-			}
+-			else if(keysdown & KEY_L)
+-			{
+-				if((page_num == SD_list) && recents_view_active)
+-				{
+-					UIAudio_PlaySfx(UI_SFX_TAB);
+-					Launcher_SetRecentVirtualMode(!recents_view_favourites);
+-					goto refind_file;
+-				}
+-				else if(page_num == SD_list)
+-				{
+-					UIAudio_PlaySfx(UI_SFX_TAB);
+-					p_folder_select_show_offset[folder_select] = show_offset;
+-					p_folder_select_file_select[folder_select] = file_select;
+-					Launcher_SaveSDState();
+-                    Launcher_CloseSystemBrowser();
+-					launcher_start_selected = 3;
+-					page_num = SET_win;
+-					launcher_vertical_folder_label_dirty = 1;
+-					goto refind_file;
+-				}
+-				else if(page_num == NOR_list)
+-				{
+-					UIAudio_PlaySfx(UI_SFX_TAB);
+-					gl_nor_show_offset_saved = show_offset;
+-					gl_nor_file_select_saved = file_select;
+-					launcher_start_selected = 1;
+-					launcher_sd_restore_pending = 1;
+-					page_num = SD_list;
+-					launcher_vertical_folder_label_dirty = 1;
+-					goto refind_file;
+-				}
+-			}
+-			else if(keysdown & KEY_R)
+-			{
+-				if((page_num == SD_list) && recents_view_active)
+-				{
+-					UIAudio_PlaySfx(UI_SFX_TAB);
+-					Launcher_SetRecentVirtualMode(!recents_view_favourites);
+-					goto refind_file;
+-				}
+-				else if(page_num == SD_list)
+-				{
+-					UIAudio_PlaySfx(UI_SFX_TAB);
+-					p_folder_select_show_offset[folder_select] = show_offset;
+-					p_folder_select_file_select[folder_select] = file_select;
+-					Launcher_SaveSDState();
+-                    Launcher_CloseSystemBrowser();
+-					launcher_start_selected = 2;
+-					recents_view_active = 0;
+-					page_num = NOR_list;
+-					launcher_vertical_folder_label_dirty = 1;
+-					goto refind_file;
+-				}
+-				else if(page_num == NOR_list)
+-				{
+-					UIAudio_PlaySfx(UI_SFX_TAB);
+-					gl_nor_show_offset_saved = show_offset;
+-					gl_nor_file_select_saved = file_select;
+-					launcher_start_selected = 3;
+-					page_num = SET_win;
+-					launcher_vertical_folder_label_dirty = 1;
+-					goto refind_file;
+-				}
+-			}
+-			else if(keysdown & KEY_B)//return
+-			{
+-                if(Launcher_SystemBrowserBack(&page_num))
+-                {
+-                    UIAudio_PlayBack();
+-                    goto re_showfile;
+-                }
+-				if(page_num == NOR_list)
+-				{
+-					if(!launcher_start_screen_off)
+-					{
+-						UIAudio_PlayBack();
+-						gl_nor_show_offset_saved = show_offset;
+-						gl_nor_file_select_saved = file_select;
+-						launcher_start_selected = 2;
+-						page_num = START_win;
+-						updata = 1;
+-						shift = 0;
+-						goto refind_file;
+-					}
+-				}
+-				if(page_num == SD_list)
+-				{
+-					if(recents_view_active)
+-					{
+-						UIAudio_PlayBack();
+-						recents_view_active = 0;
+-						strncpy(currentpath, recents_return_path, sizeof(currentpath) - 1);
+-						currentpath[sizeof(currentpath) - 1] = '\0';
+-						folder_select = recents_return_folder_select;
+-						p_folder_select_show_offset[folder_select] = recents_return_show_offset;
+-						p_folder_select_file_select[folder_select] = recents_return_file_select;
+-						Launcher_SaveSDState();
+-						launcher_vertical_folder_label_dirty = 1;
+-						launcher_force_full_redraw = 1;
+-						goto refind_file;
+-					}
+-				//res = f_getcwd(currentpath, sizeof currentpath / sizeof *currentpath);
+-				if(strcmp(currentpath,"/") !=0 ){
+-						UIAudio_PlayBack();
+-				dmaCopy(currentpath, currentpath_temp, MAX_path_len);
+-				TCHAR *p=strrchr(currentpath_temp, '/');
+-				memset(currentpath,0x00,MAX_path_len);
+-				strncpy(currentpath, currentpath_temp, p-currentpath_temp);
+-				if(currentpath[0]==0) currentpath[0]='/';
+-
+-						res=f_chdir(currentpath);
+-						if(res != FR_OK){
+-							error_num = 10;
+-							Show_error_num(error_num);
+-							goto re_showfile;
+-						}
+-
+-						p_folder_select_show_offset[folder_select] = 0;//clean
+-						p_folder_select_file_select[folder_select] = 0;//clean
+-						if(folder_select){
+-							folder_select--;
+-						}
+-						launcher_vertical_folder_label_dirty = 1;
+-				goto refind_file;
+-			}
+-			else
+-			{
+-						if(!launcher_start_screen_off)
+-						{
+-							UIAudio_PlayBack();
+-							p_folder_select_show_offset[folder_select] = show_offset;
+-							p_folder_select_file_select[folder_select] = file_select;
+-							Launcher_SaveSDState();
+-							launcher_start_selected = 1;
+-							page_num = START_win;
+-							updata = 1;
+-							shift = 0;
+-							goto refind_file;
+-						}
+-			}
+-			}
+-			}
+-			else if(keys_released & KEY_SELECT)
+-			{
+-				if(select_double_handled || launcher_select_release_cooldown)
+-				{
+-					select_double_handled = 0;
+-					select_tap_pending = 0;
+-					select_tap_timer = 0;
+-				}
+-				else
+-				{
+-					select_tap_pending = 1;
+-					select_tap_timer = 24;
+-				}
+-			}
+-			else if(keysdown & KEY_A)
+-			{
+-				if(((page_num == SD_list) && (game_folder_total == 0)) ||
+-				   ((page_num == NOR_list) && (game_total_NOR == 0)))
+-				{
+-					/* Empty folders and virtual lists have no actionable entry. */
+-				}
+-				else if(page_num==SD_list){
+-					u32 selected_index = Launcher_ResolveListEntryIndex(show_offset + file_select);
+-					//res = f_getcwd(currentpath, sizeof currentpath / sizeof *currentpath);
+-		if(selected_index < folder_total)
+-		{
+-						TCHAR nextpath[MAX_path_len + 200];
+-						int path_length;
+-						if(strcmp(currentpath,"/") !=0)
+-							path_length = snprintf(nextpath, sizeof(nextpath), "%s/%s", currentpath, pFolder[selected_index].filename);
+-						else
+-							path_length = snprintf(nextpath, sizeof(nextpath), "/%s", pFolder[selected_index].filename);
+-						if(path_length < 0 || (size_t)path_length >= sizeof(currentpath)){
+-							error_num = 0;
+-							Show_error_num(error_num);
+-							goto re_showfile;
+-						}
+-						res=f_chdir(nextpath);
+-						if(res != FR_OK){
+-							error_num = 0;
+-							Show_error_num(error_num);
+-							goto re_showfile;
+-						}
+-						memcpy(currentpath, nextpath, (size_t)path_length + 1);
+-
+-						p_folder_select_show_offset[folder_select] = show_offset;
+-						p_folder_select_file_select[folder_select] = file_select;
+-						folder_select++;
+-						launcher_vertical_folder_label_dirty = 1;
+-
+-			goto refind_file;
+-			}
+-		else{   //SD_list file
+-			res = SD_list_MENU(selected_index, 0, recents_view_active ? selected_index : play_re);
+-						if(res){
+-							launcher_force_full_redraw = 1;
+-							if(res==2){
+-								recents_view_active = 0;
+-								page_num = NOR_list;
+-							}
+-							goto refind_file ;
+-						}
+-						else{
+-							if(launcher_reopen_sd_menu_after_redraw)
+-								goto re_showfile;
+-							launcher_force_full_redraw = 0;
+-							updata = 1;
+-							continue;
+-						}
+-						//break;
+-					}
+-				}
+-				else{   //NOR gba file
+-					if(game_total_NOR){
+-						u32 selected_index = Launcher_ResolveListEntryIndex(show_offset + file_select);
+-						res = NOR_list_MENU(selected_index, 0);
+-						if(res){
+-							launcher_force_full_redraw = 1;
+-							goto refind_file ;
+-						}
+-						else{
+-							launcher_force_full_redraw = 0;
+-							updata = 1;
+-							continue;
+-						}
+-						//break;
+-					}
+-				}
+-
+-			}
+-			else if((keys_released & KEY_START) && launcher_start_release_suppressed)
+-			{
+-				launcher_start_release_suppressed = 0;
+-				start_hold_frames = 0;
+-				start_long_delete_done = 0;
+-			}
+-			else if(keys_released & KEY_START)
+-			{
+-				if(!start_long_delete_done && (start_hold_frames < 120) && (page_num == SD_list))
+-				{
+-					UIAudio_PlaySfx(UI_SFX_MENU);
+-					if(recents_view_active)
+-					{
+-						Launcher_SetRecentVirtualMode(!recents_view_favourites);
+-					}
+-					else
+-					{
+-						recents_view_active = 1;
+-						strncpy(recents_return_path, currentpath, sizeof(recents_return_path) - 1);
+-						recents_return_path[sizeof(recents_return_path) - 1] = '\0';
+-						recents_return_show_offset = show_offset;
+-						recents_return_file_select = file_select;
+-						recents_return_folder_select = folder_select;
+-						Launcher_SaveSDState();
+-						Launcher_SetRecentVirtualMode(0);
+-					}
+-					goto refind_file;
+-				}
+-			}
+-			if(keys_released & KEY_START)
+-			{
+-				start_hold_frames = 0;
+-				start_long_delete_done = 0;
+-			}
+-
+-			if(((page_num == SD_list) || (page_num == NOR_list)) &&
+-			Launcher_IsListArtMode() && Launcher_GetTotalEntries() &&
+-			launcher_list_art_pending)
+-			{
+-				if(updata || select_tap_pending || keysdown || keysheld || keysrepeat || keys_released)
+-					launcher_list_art_idle_frames = 0;
+-				else if(launcher_list_art_idle_frames < LAUNCHER_LIST_ART_IDLE_LOAD_FRAMES)
+-					launcher_list_art_idle_frames++;
+-				else
+-					Launcher_ServicePendingListArt(show_offset, file_select);
+-			}
+-			else
+-			{
+-				launcher_list_art_idle_frames = 0;
+-			}
+-
+-			ShowTime(page_num,page_mode);
+-		}	//2
+-	}
++    REG_DISPCNT=MODE_3|BG2_ENABLE; REG_BLDCNT=0x00ff; REG_BLDY=16;
++    irqInit(); irqSet(IRQ_VBLANK,Slot_VBlank); irqEnable(IRQ_VBLANK); REG_IME=1;
++    gl_currentpage=0x8002;
++    SetMode(MODE_3|BG2_ENABLE);
++    SD_Disable(); Set_RTC_status(1);
++    Check_FW_update();
++    CheckLanguage(); CheckSwitch(); UIAudio_Init();
++    if(f_mount(&EZcardFs,"",1)!=FR_OK) {
++        SetMode(MODE_3|BG2_ENABLE); REG_BLDCNT=0;REG_BLDY=0;
++        slot_frame=(uint16_t*)pReadCache;
++        Slot_Message("SD card could not be mounted","Power off and check the card");
++        while(1) VBlankIntrWait();
++    }
++    launcher_splash_fade_pending=0; Slot_BootSplash();
++    /* Required before browsing: finish the previous game's pending save backup. */
++    Check_save_flag();
++    folder_select=1; folder_total=0;
++    f_chdir("/"); strcpy(currentpath,"/");
++    Read_NOR_info(); gl_norOffset=0;
++    game_total_NOR=GetFileListFromNor();
++    Slot_FadeBlack();
++    SetMode(MODE_3|BG2_ENABLE);
++    Slot_Run();
++    return 0;
+ }
+ //---------------------------------------------------------------
+ #include "launch_indicator_anchor.h"
+ static void Launcher_RestoreLaunchMenu(u32 show_offset, u32 file_select)
+ {
+-    if(launcher_active_page == START_win)
+-        DrawPic((u16*)(pReadCache + 0x10000), 36, 25, 168, 110, 0, 0, 1);
+-    else
+-    {
+-        Launcher_RestorePopupRegionForPage(launcher_active_page,
+-            launcher_cache_prev.valid && launcher_cache_prev.has_thumbnail);
+-        if(Launcher_IsListLikeMode()) Launcher_RestoreListPopupContent(show_offset, file_select);
+-        else if(Launcher_ActiveViewMode() == 2) Draw_ModernLauncher_SD_Vertical_State(show_offset, file_select);
+-        else Draw_ModernLauncher_SD(show_offset, file_select, 0);
+-        launcher_popup_restore_redraw = 0;
+-    }
++    (void)show_offset; (void)file_select; /* Slot already drew the launch frame. */
+ }
+ 
+ static void Launcher_ConfirmLaunch(u32 pulse)
+ {
+-    UIAudio_PlaySfx(UI_SFX_LAUNCH);
+-    if(pulse) Launcher_AnimateCarouselLaunch();
++    (void)pulse; /* Slot starts its insertion clip with the cartridge animation. */
+ }
+ //---------------------------------------------------------------
+ void Boot_NOR_game(u32 show_offset,	u32 file_select,u32 key_L)
+@@ -16609,10 +14532,10 @@
+ 			break;
+ 	case 1://PSRAM BOOT WITH ADDON
+ 		ShowbootProgress(gl_loading_game);
+-		gl_reset_on = Read_SET_info(assress_v_reset);
+-				gl_rts_on 	= Read_SET_info(assress_v_rts);
+-				gl_sleep_on = Read_SET_info(assress_v_sleep);
+-				gl_cheat_on = Read_SET_info(assress_v_cheat);
++		/* Slot Omega retains the active reset option from SETTINGS.TXT. */
++				/* Slot Omega retains the active rts option from SETTINGS.TXT. */
++				/* Slot Omega retains the active sleep option from SETTINGS.TXT. */
++				/* Slot Omega retains the active cheat option from SETTINGS.TXT. */
+ 				if((gl_reset_on==1) || (gl_rts_on==1) || (gl_sleep_on==1) || (gl_cheat_on==1))
+ 				{
+ 					if(gl_rts_on==1)
+@@ -16702,10 +14625,10 @@
+ 		break;
+ 	case 3://WRITE TO NOR ADDON
+ 		UIAudio_StopForSharedBufferUse();
+-		gl_reset_on = Read_SET_info(assress_v_reset);
+-				gl_rts_on = Read_SET_info(assress_v_rts);
+-				gl_sleep_on = Read_SET_info(assress_v_sleep);
+-				gl_cheat_on = Read_SET_info(assress_v_cheat);
++		/* Slot Omega retains the active reset option from SETTINGS.TXT. */
++				/* Slot Omega retains the active rts option from SETTINGS.TXT. */
++				/* Slot Omega retains the active sleep option from SETTINGS.TXT. */
++				/* Slot Omega retains the active cheat option from SETTINGS.TXT. */
+ 
+ 				f_chdir(currentpath);//return to game folder
+ 				u32 needpatch = 0;
+--- a/source/launch_indicator_anchor.h
++++ b/source/launch_indicator_anchor.h
+@@ -1,33 +1,3 @@
+-#ifndef DS_STYLE_LAUNCH_INDICATOR_ANCHOR_H
+-#define DS_STYLE_LAUNCH_INDICATOR_ANCHOR_H
+-
+-static void Launcher_GetLaunchIndicatorRect(int *x, int *y, int *w, int *h)
+-{
+-    u32 view = Launcher_ActiveViewMode();
+-    *x = 88; *y = 48; *w = 64; *h = 64;
+-    if(launcher_active_page == START_win)
+-    {
+-        *x = LAUNCHER_START_LAST_THUMB_X; *y = LAUNCHER_START_LAST_THUMB_Y;
+-        *w = LAUNCHER_START_THUMB_W; *h = LAUNCHER_START_THUMB_H;
+-        if(launcher_spinner.start_icon)
+-        {
+-            *x += (*w - 32) / 2; *y += (*h - 28) / 2;
+-            *w = 32; *h = 28;
+-        }
+-        else if(launcher_thumbnail_style == LAUNCHER_THUMB_STYLE_BOX)
+-        {
+-            *x += 9; *w = 37;
+-        }
+-    }
+-    else if(view == LAUNCHER_VIEW_HORIZONTAL || view == LAUNCHER_VIEW_VERTICAL)
+-    {
+-        LauncherMotionRect r = Launcher_MotionSlot(0, view);
+-        LauncherMotionImage image = Launcher_MotionImage(&launcher_cache_selected,
+-            launcher_cache_selected.absolute_index);
+-        r = Launcher_MotionImageRect(r, image.icon, 0);
+-        *x = r.x; *y = r.y; *w = r.w; *h = r.h;
+-    }
+-    else if(view == LAUNCHER_VIEW_LIST_ART && launcher_list_art_screen_has_art)
+-        Launcher_GetListArtRect(x, y, w, h);
+-}
+-#endif
++/* The ring stays at the screen centre, where the cart was before insertion. */
++static void Launcher_GetLaunchIndicatorRect(int *x,int *y,int *w,int *h)
++{ *x=100; *y=60; *w=40; *h=40; }
+--- a/source/launch_indicator.h
++++ b/source/launch_indicator.h
+@@ -76,7 +76,7 @@
+     REG_IME = 0;
+     launcher_spinner.display = REG_DISPCNT;
+     launcher_spinner.frame = 0;
+-    launcher_spinner.dark = launcher_dark_mode || (launcher_custom_theme_mode && LAUNCHER_CUSTOM_THEME_DARK_STYLE);
++    launcher_spinner.dark = slot_loading_dark;
+     for(i = 0; i < 512; i++) launcher_spinner.oam[i] = LAUNCHER_SPINNER_OAM[i];
+     for(i = 0; i < 1024; i++) launcher_spinner.tiles[i] = LAUNCHER_SPINNER_TILES[i];
+     for(i = 0; i < 16; i++) launcher_spinner.palette[i] = LAUNCHER_SPINNER_PALETTE[i];
+--- a/source/menu_fade.h
++++ b/source/menu_fade.h
+@@ -32,7 +32,7 @@
+ 
+ static void Launcher_FadeOut(void)
+ {
+-    Launcher_FadeTo(!(launcher_dark_mode || (launcher_custom_theme_mode && LAUNCHER_CUSTOM_THEME_DARK_STYLE)));
++    Launcher_FadeTo(0);
+ }
+ 
+ /* The complete image is already in VRAM, hidden by forced blank. */
+--- a/source/GBApatch.c
++++ b/source/GBApatch.c
+@@ -293,9 +293,9 @@
+ 
+ 	u32  PATCH_LENGTH;
+ 
+-	if((gl_rts_on==1)/* || (gl_cheat_on==1)*/ )
+-	{
+-		PATCH_LENGTH = 0x1000;
++	if((gl_rts_on==1) || (gl_reset_on==1))
++	{
++		PATCH_LENGTH = 0x2000; /* Full Slot hold-reset/menu wrapper. */
+ 	}
+ 	else
+ 	{
+@@ -472,7 +472,8 @@
+   u32 RTS_Reset_key_offset = (u8*)RTS_Reset_key - p_patch_start;
+  	u32 RTS_Sleep_key_offset = (u8*)RTS_Sleep_key - p_patch_start;
+ 
+-  *(vu32*)(patchbuffer+RTS_Reset_key_offset) = RTS_reset_key_val&0x3FF;
++  *(vu32*)(patchbuffer+RTS_Reset_key_offset) = 0x3F3; /* Start + Select. */
++    *(vu32*)(patchbuffer+((u8*)Slot_RTS_HoldEnabled-p_patch_start)) = gl_reset_on;
+   if(gl_sleep_on !=1){
+     *(vu32*)(patchbuffer+RTS_Sleep_key_offset) = 0;
+   }
+@@ -626,11 +627,11 @@
+ 	//Check_Fire_Emblem();
+ 	Patch_somegame(address);
+ 
+-	if( (gl_rts_on==1) && (gl_cheat_on == 0)  && (gl_reset_on == 0)  && (gl_sleep_on == 0)  ) {
++	if( 0 && (gl_rts_on==1) && (gl_cheat_on == 0)  && (gl_reset_on == 0)  && (gl_sleep_on == 0)  ) {
+ 		spend_address = Get_spend_address(address);
+ 		Patch_RTS_only(address);
+ 	}
+-	else if((gl_rts_on==1) ||  ((gl_cheat_on==1)&& (gl_cheat_count>0) ) )
++	else if((gl_rts_on==1) || (gl_reset_on==1) ||  ((gl_cheat_on==1)&& (gl_cheat_count>0) ) )
+ 	{
+ 		spend_address = Get_spend_address(address);
+ 		//DEBUG_printf("spend_address =%x",spend_address);
+@@ -675,10 +676,10 @@
+ 	PatchDragonBallZ(address);
+ 	//Check_Fire_Emblem();
+ 
+-	if( (gl_rts_on==1) && (gl_cheat_on == 0)  && (gl_reset_on == 0)  && (gl_sleep_on == 0)  ) {
++	if( 0 && (gl_rts_on==1) && (gl_cheat_on == 0)  && (gl_reset_on == 0)  && (gl_sleep_on == 0)  ) {
+ 		Patch_RTS_only(address);
+ 	}
+-	else if((gl_rts_on==1) ||  ((gl_cheat_on==1)&& (gl_cheat_count>0) ) )
++	else if((gl_rts_on==1) || (gl_reset_on==1) ||  ((gl_cheat_on==1)&& (gl_cheat_count>0) ) )
+ 	{
+ 		Patch_RTS_Cheat(address);
+ 	}
+@@ -746,7 +747,7 @@
+ 
+ 	TCHAR patnamebuf[100];
+ 	make_pat_name(patnamebuf,gamefilename);
+-	res=f_chdir("/SYSTEM/PATCH");
++	res=f_chdir("/SYSTEM/PATCH/SLOT02");
+ 	if(res == FR_OK)
+ 	{
+ 		res = f_open(&gfile,patnamebuf, FA_READ);
+@@ -794,7 +795,8 @@
+ 	u32 w_buffer[16];
+ 
+ 	res = f_mkdir("/SYSTEM/PATCH");
+-	res=f_chdir("/SYSTEM/PATCH");
++    f_mkdir("/SYSTEM/PATCH/SLOT02");
++	res=f_chdir("/SYSTEM/PATCH/SLOT02");
+ 
+ 	memset(w_buffer, 0x00, sizeof(w_buffer));
+ 
+--- a/source/GBApatch.h
++++ b/source/GBApatch.h
+@@ -26,6 +26,7 @@
+ extern void RTS_Return_address_L(void);
+ extern void RTS_Sleep_key(void);
+ extern void RTS_Reset_key(void);
++extern void Slot_RTS_HoldEnabled(void);
+ //extern void RTS_Wakeup_key(void);
+ extern void RTS_switch(void);
+ extern void Cheat_count(void);
+--- a/source/gba_rts_patch.s
++++ b/source/gba_rts_patch.s
+@@ -1,6 +1,8 @@
+ @;--------------------------------------------------------------------
+ 	.section   	.iwram,"ax",%progbits
+ 
++	.include "slot_hold_reset.inc"
++	.global Slot_RTS_HoldEnabled
+ 	.global  RTS_ReplaceIRQ_start
+ 	.global  RTS_ReplaceIRQ_end
+ 	.global  RTS_Return_address_L
+@@ -87,6 +89,10 @@
+ 	MOV             R0, #0x4000000
+ 	ADR             R1, RTS_irq
+ 	STR             R1, [R0,#-4] @; 0x3FFFFFC = RTS_irq;
++	adr r1,spend_0x80
++	ldr r1,[r1]
++	mov r2,#0
++	str r2,[r1,#0x7c]
+ 	LDR             R0, =0x12345678
+ 	BX              R0
+ 	.align
+@@ -106,6 +112,7 @@
+ 	bic 		r2,r2,#0xFF000000
+ 	bic 		r2,r2,#0x00FF0000
+ 
++	SLOT_HOLD_TICK spend_0x80, Slot_RTS_HoldEnabled, reset_now
+ 	@;check ingamemenu
+ 	adr 		r3,RTS_Reset_key
+ 	ldr 		r3,[r3]
+@@ -153,6 +160,11 @@
+ @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ reset_now:
++	mov r0,#0x04000000
++	mov r1,#0xff
++	strh r1,[r0,#0x50]
++	mov r1,#16
++	strh r1,[r0,#0x54]
+ 	adr r1,reset_code
+ 	adr r3,reset_end
+ 	mov r2,#0x02000000
+@@ -165,6 +177,8 @@
+ 	add r0,r0,#1
+ 	bx r0
+ @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++Slot_RTS_HoldEnabled:
++	.word 1
+ RTS_Sleep_key:
+ 	.word 0xFB @;L+R+select
+ RTS_Reset_key:
+--- a/source/Ezcard_OP.c
++++ b/source/Ezcard_OP.c
+@@ -565,6 +565,8 @@
+ 	}
+ 
+ 	if (updateFirmware) {
++        /* Maintenance prompts must remain visible during the black boot path. */
++        REG_BLDCNT=0; REG_BLDY=0;
+ 		sprintf(msg,"Current firmware version: V%02d",DEcard_FW_readver);
+ 		DrawHZText12(msg,0,2,offset_Y+1*line_x, 0x7FFF,1);
+ 
+@@ -628,7 +630,8 @@
+ 			}
+ 		}
+ 	}
+-    REG_DISPCNT |= 0x0080;
++    REG_BLDCNT=0x00ff; REG_BLDY=16;
++    REG_DISPCNT &= (u16)~0x0080;
+ }
+ // --------------------------------------------------------------------
+ static const u32 crc32tab[] = {
+--- /dev/null
++++ b/source/slot_blit_kernel.s
+@@ -0,0 +1 @@
++.include "slot_blit.s"
+--- a/Makefile
++++ b/Makefile
+@@ -1,3 +1,4 @@
++SLOT_COMMON := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../../common)
+ #---------------------------------------------------------------------------------
+ .SUFFIXES:
+ #---------------------------------------------------------------------------------
+@@ -23,7 +24,7 @@
+ TARGET		:= $(notdir $(CURDIR))
+ BUILD		:= build
+ SOURCES		:= source source/ff15
+-INCLUDES	:= include source/ff15 images
++INCLUDES	:= include source/ff15 images ../../common
+ DATA		:=
+ MUSIC		:=
+ 
+@@ -38,12 +39,12 @@
+ 		-ffast-math \
+ 		$(ARCH)
+ 
+-CFLAGS	+=	$(INCLUDE)
++CFLAGS	+=	$(INCLUDE) -ffunction-sections -fdata-sections -Os
+ 
+ CXXFLAGS	:=	$(CFLAGS) -fno-rtti -fno-exceptions
+ 
+-ASFLAGS	:=	-g $(ARCH)
+-LDFLAGS	=	-g $(ARCH) -Wl,-Map,$(notdir $*.map)
++ASFLAGS	:=	-g $(ARCH) -Wa,-I$(SLOT_COMMON)
++LDFLAGS	=	-g $(ARCH) -Wl,--gc-sections -Wl,-Map,$(notdir $*.map)
+ 
+ #---------------------------------------------------------------------------------
+ # any extra libraries we wish to link with the project

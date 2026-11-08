@@ -1,0 +1,78 @@
+{
+  "repository": "https://github.com/slot-cfw/slot",
+  "commit": "57ea55f9763c01eb4e3ac12e8b0240ec682dba3f",
+  "verified_git_blob_hashes": [
+    {
+      "path": "crates/slot-ui/assets/cart.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b79670cf1b3c831570dd1ee769509128460901e9",
+      "size": 1417,
+      "url": "https://api.github.com/repos/slot-cfw/slot/git/blobs/b79670cf1b3c831570dd1ee769509128460901e9"
+    },
+    {
+      "path": "crates/slot-ui/assets/cart_detail.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dc57a13193f2f2898675be9ba3be9faa1ab70e70",
+      "size": 1272,
+      "url": "https://api.github.com/repos/slot-cfw/slot/git/blobs/dc57a13193f2f2898675be9ba3be9faa1ab70e70"
+    },
+    {
+      "path": "crates/slot-ui/assets/gb_cart.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e4f78ddf66f4e4ed19b2a8b43f1a02f2ff8addee",
+      "size": 325,
+      "url": "https://api.github.com/repos/slot-cfw/slot/git/blobs/e4f78ddf66f4e4ed19b2a8b43f1a02f2ff8addee"
+    },
+    {
+      "path": "crates/slot-ui/assets/gb_cart_detail.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "079ee60db132ad8e9783d8f54245f38982830840",
+      "size": 2346,
+      "url": "https://api.github.com/repos/slot-cfw/slot/git/blobs/079ee60db132ad8e9783d8f54245f38982830840"
+    },
+    {
+      "path": "crates/slot-ui/assets/gbc_cart.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c53d84f2a881e470e9e40d374af88539f04698db",
+      "size": 247,
+      "url": "https://api.github.com/repos/slot-cfw/slot/git/blobs/c53d84f2a881e470e9e40d374af88539f04698db"
+    },
+    {
+      "path": "crates/slot-ui/assets/gbc_cart_detail.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7c3e0eead91ded782ad483e0b60feee496fc101a",
+      "size": 3062,
+      "url": "https://api.github.com/repos/slot-cfw/slot/git/blobs/7c3e0eead91ded782ad483e0b60feee496fc101a"
+    },
+    {
+      "path": "crates/slot-ui/assets/lettering_gb.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "27c48a6302b070c1bc09e225d70233a8b97a22f5",
+      "size": 2588,
+      "url": "https://api.github.com/repos/slot-cfw/slot/git/blobs/27c48a6302b070c1bc09e225d70233a8b97a22f5"
+    },
+    {
+      "path": "crates/slot-ui/assets/lettering_gba.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ebe300100629d5bfab346aa39054aee4d87da4e1",
+      "size": 1636,
+      "url": "https://api.github.com/repos/slot-cfw/slot/git/blobs/ebe300100629d5bfab346aa39054aee4d87da4e1"
+    },
+    {
+      "path": "crates/slot-ui/assets/lettering_gbc.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c811b4198cb01c1d7c703d9f093b7d306c48eb3d",
+      "size": 2618,
+      "url": "https://api.github.com/repos/slot-cfw/slot/git/blobs/c811b4198cb01c1d7c703d9f093b7d306c48eb3d"
+    }
+  ]
+}

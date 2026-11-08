@@ -1,0 +1,13 @@
+{
+  "status": "pass",
+  "frozen": true,
+  "converted": 10,
+  "generated_bmps": 30,
+  "repeated_runs": 2,
+  "path_only_windows": true,
+  "source_labels_rom_and_save_unchanged": true,
+  "native_text_palette_including_transparency": 3,
+  "realistic_and_simple_assets_bundled": true,
+  "label_corner_pixels_removed": 4,
+  "gui": "Same tested folder-picker/worker flow as 0.2; branding updated, conversion verified through the frozen executable."
+}

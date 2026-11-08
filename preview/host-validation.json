@@ -1,0 +1,9 @@
+{
+  "status": "pass",
+  "checks": 2459,
+  "failed": 0,
+  "steady_stream_frames": 750,
+  "steady_visible_cache_misses": 0,
+  "streaming_checks": "Twenty-game holds/reversals across both styles and all systems, 24-row reads, no partial image exposure, cancel/retry, missing/malformed/failing reads; 36 endpoint image comparisons and 288 full-versus-incremental comparisons.",
+  "scope": "Actual common/slot_frontend.h with mocked hardware/SD IO, real converter BMPs, settings faults, streaming cache, empty/missing/error/512-entry shelves, launch delegation and menus. Does not measure physical SD latency."
+}

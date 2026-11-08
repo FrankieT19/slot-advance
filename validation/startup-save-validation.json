@@ -1,0 +1,6 @@
+{
+  "status": "pass",
+  "checks": 5,
+  "failed": 0,
+  "scope": "Actual DE Check_save_flag compiled against mocked save-info and SD IO: absent flag, success, failed write, failed path, retry. No physical save write-back claim."
+}

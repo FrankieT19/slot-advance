@@ -1,0 +1,21 @@
+{
+  "status": "pass",
+  "unit_tests": 4,
+  "release_header_checks": [
+    {
+      "target": "omega",
+      "first_224_bytes_match_01": true,
+      "header_entry": "0xEA00002E",
+      "header_sha256": "33219f6b63a62c2300f9f402ed5f60c568a2a11ec7d4aac3a4ecc600c63b0cee"
+    },
+    {
+      "target": "omega-de",
+      "first_224_bytes_match_01": true,
+      "header_entry": "0xEA00002E",
+      "header_sha256": "33219f6b63a62c2300f9f402ed5f60c568a2a11ec7d4aac3a4ecc600c63b0cee"
+    }
+  ],
+  "startup_after_first_video_callback": "14 consecutive fully black frames before splash",
+  "scope": "Header compatibility with working 0.1 binaries, early-entry ARM execution in mGBA. Physical cartridge recognition remains to be confirmed.",
+  "diagnosis": "0.2 changed the first word from 0xEA00002E to an end-of-ROM branch. This is the suspected cause of the reported no-kernel-found error; the exact loader acceptance check has not been independently inspected."
+}

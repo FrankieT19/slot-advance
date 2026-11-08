@@ -1,0 +1,42 @@
+{
+  "retrieved_date": "2026-11-04",
+  "sources": {
+    "omega": {
+      "repository": "https://github.com/FrankieT19/omega-ds-style-kernel",
+      "commit": "ef30b8ba78147943d95653dfa82f721b52096f67",
+      "base": "master",
+      "licence": "Apache-2.0"
+    },
+    "omega-de": {
+      "repository": "https://github.com/FrankieT19/omega-de-ds-style-kernel",
+      "commit": "67a5f7ba23b38ad2c10fdb4f27956750a65129fc",
+      "base": "main",
+      "licence": "Apache-2.0"
+    },
+    "slot": {
+      "repository": "https://github.com/BrandonKowalski/slot",
+      "commit": "e66715df495c8edef3f548be428957b9ffe42373",
+      "licence": "GPL-3.0-or-later",
+      "copied": "Selected realistic artwork, plain cartridge silhouettes, fonts and insertion PCM; shell model, procedural slot geometry and insertion travel adapted to GBA"
+    },
+    "cart-studio": {
+      "repository": "https://github.com/BrandonKowalski/slot-cart-studio",
+      "commit": "de868616b1de5ed3f4e50526d7e5382a3da2cbf9",
+      "use": "Read to verify export paths and ZIP/metadata structure"
+    }
+  },
+  "navigation_source": {
+    "repository": "slot-cfw/slot",
+    "commit": "0fe8f5cfa63161bdec5dd4680775d5a7ad0b463c",
+    "path": "crates/slot-ui/src/shelf.rs"
+  },
+  "simple_design_source": {
+    "repository": "slot-cfw/slot",
+    "commit": "57ea55f9763c01eb4e3ac12e8b0240ec682dba3f",
+    "paths": [
+      "crates/slot-ui/src/cart.rs",
+      "crates/slot-ui/src/silhouette.rs",
+      "crates/slot-ui/assets/"
+    ]
+  }
+}

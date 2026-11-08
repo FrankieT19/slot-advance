@@ -1,0 +1,11 @@
+work/
+**/build/
+__pycache__/
+*.pyc
+preview/*.elf
+preview/*.map
+preview/*.log
+preview/*.gba
+release/
+dist/
+app/*.exe

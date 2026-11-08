@@ -1,0 +1,19 @@
+{
+  "status": "pass",
+  "single_move": {
+    "emulated_frames": 32,
+    "ms": 535.7666066719685,
+    "distinct_frame_changes": 14
+  },
+  "rapid_taps": 8,
+  "target_retargets_before_settling": true,
+  "direction_reversal_preserved": true,
+  "held_repeat_stops_on_release": true,
+  "skeuomorphic_toggle": true,
+  "about_page": true,
+  "about_survives_entering_key": true,
+  "help_pages": 2,
+  "help_survives_entering_key": true,
+  "cache_refresh_preserves_pixels": true,
+  "scope": "Shared GBA renderer and continuously retargeted spring. Settling includes a nearly invisible subpixel tail, not an input lockout. Physical SD reads and LCD cadence require cartridge testing."
+}

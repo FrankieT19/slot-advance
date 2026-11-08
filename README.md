@@ -4,7 +4,7 @@
 
 slot. advance is a port of [slot.](https://github.com/slot-cfw/slot) for **EZ-FLASH Omega** and the original **Omega Definitive Edition**, using [DS Style](https://github.com/FrankieT19/omega-de-ds-style-kernel) as its underlying framework. It brings slot.'s cartridge carousel, scanned labels, cartridge colours and insertion animation to the GBA's 240 × 160 screen. DS Style handles game loading, saves, native GBA patches and GB/GBC emulation.
 
-**Public version:** v1.0 · **Internal build:** 0.8
+**Version:** v1.0
 
 ![GBA preview of slot. advance: GBA, GB, GBC and Settings](preview/overview.png)
 
@@ -16,8 +16,8 @@ Open [Releases](https://github.com/FrankieT19/slot-advance/releases) and downloa
 
 | Your cartridge | Download | Kernel inside `SD_CARD` |
 | --- | --- | --- |
-| Original EZ-FLASH Omega | `slot-advance-0.8-omega.zip` | `ezkernel.bin` |
-| Original Omega Definitive Edition, Rev A / Rev B | `slot-advance-0.8-omega-de.zip` | `ezkernelnew.bin` |
+| Original EZ-FLASH Omega | `slot-advance-v1.0-omega.zip` | `ezkernel.bin` |
+| Original Omega Definitive Edition, Rev A / Rev B | `slot-advance-v1.0-omega-de.zip` | `ezkernelnew.bin` |
 
 The newer blue-PCB **Omega DE B / EZODE-B is not supported** by these backends. The two downloads are model-specific; do not rename one kernel to use it on the other model.
 
@@ -59,7 +59,7 @@ Use the original [slot. Cart Studio](https://studio.slot-cfw.fyi/) to find artwo
 2. In Cart Studio, choose **Get Started**, then **Choose SD Card**. Select the **top of the card**, containing `Games`; do not select just `Games` or `Labels`.
 3. Let Cart Studio identify your games. Use **Fill unlabelled carts…** and choose **Real Label** for scanned cartridge labels, or **Logo Only** if you prefer. Click an individual cartridge to change its label, upload your own PNG or choose its shell colour/finish.
 4. Choose **Write to card**. In browsers that download instead, use **Download labels**, extract `labels.zip`, and merge its `Labels` folder into your SD root. Keep the shell metadata such as `Labels/cart_shell.txt`; it carries the cartridge choices.
-5. Run **`Tools/slot-advance-label-converter-0.8.exe`** from the release ZIP on your Windows computer. Choose **Select SD card…**, select the card root, then convert. The application includes everything it needs; no Python installation is required.
+5. Run **`Tools/slot-advance-label-converter-v1.0.exe`** from the release ZIP on your Windows computer. Choose **Select SD card…**, select the card root, then convert. The application includes everything it needs; no Python installation is required.
 6. Wait for conversion to finish, safely eject the card, and boot your GBA.
 
 The converter writes both realistic and simple cartridges to `SYSTEM/SLOT/CARTS` and `SYSTEM/SLOT/CARTS_FLAT`. It preserves your games, saves, original PNGs and shell metadata. You can rerun it after changing labels or adding games.
@@ -100,7 +100,7 @@ For **native GBA games booted with Addons**, hold **Select for about three secon
 
 The library is read automatically at startup and when changing shelves. To add games, power off, copy them into the correct folder, update their artwork if wanted, and boot again. Each system remembers its own selection.
 
-For an update, back up the card, copy the new model's `SD_CARD` contents over your installation, and update the kernel with R as above. Preserve `SYSTEM/SAVER`, `Labels`, `USERNAME.TXT` and your existing settings. The internal build number is in the download filename; About displays the public version.
+For an update, back up the card, copy the new model's `SD_CARD` contents over your installation, and update the kernel with R as above. Preserve `SYSTEM/SAVER`, `Labels`, `USERNAME.TXT` and your existing settings. About and the download filenames show the release version.
 
 ## Troubleshooting
 

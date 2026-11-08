@@ -1,0 +1,225 @@
+{
+  "format": 3,
+  "cart_scale": "1/3",
+  "bmp": "16-bit BI_RGB RGB555; magenta colour key",
+  "source": "slot-export.zip",
+  "items": [
+    {
+      "platform": "GB",
+      "stem": "FOREST TRAIL",
+      "cart": "SYSTEM/SLOT/CARTS/GB/FOREST TRAIL.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GB/FOREST TRAIL.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GB/FOREST TRAIL.bmp",
+      "shell": {
+        "outline": "notched",
+        "colour": "647c54",
+        "finish": "clear"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": false
+    },
+    {
+      "platform": "GB",
+      "stem": "MOON POST",
+      "cart": "SYSTEM/SLOT/CARTS/GB/MOON POST.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GB/MOON POST.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GB/MOON POST.bmp",
+      "shell": {
+        "outline": "notched",
+        "colour": "b9ae8b",
+        "finish": "solid"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": false
+    },
+    {
+      "platform": "GB",
+      "stem": "POCKET TIDES",
+      "cart": "SYSTEM/SLOT/CARTS/GB/POCKET TIDES.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GB/POCKET TIDES.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GB/POCKET TIDES.bmp",
+      "shell": {
+        "outline": "notched",
+        "colour": "55a7ad",
+        "finish": "glitter"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": false
+    },
+    {
+      "platform": "GBA",
+      "stem": "MOSS GARDEN",
+      "cart": "SYSTEM/SLOT/CARTS/GBA/MOSS GARDEN.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBA/MOSS GARDEN.bmp",
+      "cart_size": [
+        120,
+        71
+      ],
+      "label_size": [
+        88,
+        45
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBA/MOSS GARDEN.bmp",
+      "shell": {
+        "outline": "auto",
+        "colour": "438d48",
+        "finish": "clear"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": false
+    },
+    {
+      "platform": "GBA",
+      "stem": "ORBIT RUNNER",
+      "cart": "SYSTEM/SLOT/CARTS/GBA/ORBIT RUNNER.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBA/ORBIT RUNNER.bmp",
+      "cart_size": [
+        120,
+        71
+      ],
+      "label_size": [
+        88,
+        45
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBA/ORBIT RUNNER.bmp",
+      "shell": {
+        "outline": "auto",
+        "colour": "8855cc",
+        "finish": "solid"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": false
+    },
+    {
+      "platform": "GBA",
+      "stem": "SKYLINE CIRCUIT",
+      "cart": "SYSTEM/SLOT/CARTS/GBA/SKYLINE CIRCUIT.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBA/SKYLINE CIRCUIT.bmp",
+      "cart_size": [
+        120,
+        71
+      ],
+      "label_size": [
+        88,
+        45
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBA/SKYLINE CIRCUIT.bmp",
+      "shell": {
+        "outline": "auto",
+        "colour": "d86338",
+        "finish": "glitter"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": false
+    },
+    {
+      "platform": "GBC",
+      "stem": "DEEP BLUE",
+      "cart": "SYSTEM/SLOT/CARTS/GBC/DEEP BLUE.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBC/DEEP BLUE.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBC/DEEP BLUE.bmp",
+      "shell": {
+        "outline": "rounded",
+        "colour": "376eb3",
+        "finish": "glitter"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": false
+    },
+    {
+      "platform": "GBC",
+      "stem": "PRISM QUEST",
+      "cart": "SYSTEM/SLOT/CARTS/GBC/PRISM QUEST.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBC/PRISM QUEST.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBC/PRISM QUEST.bmp",
+      "shell": {
+        "outline": "rounded",
+        "colour": "743ca3",
+        "finish": "solid"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": false
+    },
+    {
+      "platform": "GBC",
+      "stem": "STAR SIGNAL",
+      "cart": "SYSTEM/SLOT/CARTS/GBC/STAR SIGNAL.bmp",
+      "label": "SYSTEM/SLOT/LABELS/GBC/STAR SIGNAL.bmp",
+      "cart_size": [
+        104,
+        112
+      ],
+      "label_size": [
+        74,
+        66
+      ],
+      "flat_cart": "SYSTEM/SLOT/CARTS_FLAT/GBC/STAR SIGNAL.bmp",
+      "shell": {
+        "outline": "rounded",
+        "colour": "cc4c8a",
+        "finish": "clear"
+      },
+      "scraped_label": true,
+      "native_text": false,
+      "recovered_existing_cart": false,
+      "header_read": false
+    }
+  ],
+  "warnings": []
+}
