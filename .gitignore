@@ -9,3 +9,8 @@ preview/*.gba
 release/
 dist/
 app/*.exe
+preview/*.png
+preview/*.gif
+preview/*.wav
+examples/
+tests/demo_assets.h

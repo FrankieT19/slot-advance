@@ -34,6 +34,7 @@ python tools/convert_labels.py --help
 ## Preview and checks
 
 ```sh
+python tools/make_examples.py
 python tools/build_preview.py
 python tools/test_preview.py --core path/to/mgba_libretro.dll
 python tools/test_motion.py --core path/to/mgba_libretro.dll
@@ -50,7 +51,7 @@ The Windows host harness uses TinyCC and a disposable mock SD card. The preview 
 
 `tools/generate_assets.py` regenerates reduced built-in artwork. `tools/make_examples.py` regenerates fictional examples and preview labels. These use Pillow. Regenerating the original simple mould masks also requires the build-only `resvg-py` dependency and `tools/generate_simple_moulds.py`; the resulting masks are already supplied.
 
-`tools/package.py` checks build/test reports, stages a complete SD-card payload and the Windows converter for each model, and writes release/source ZIPs and SHA-256 sums under `dist/`. It uses the existing flash-loader filenames and never includes ROMs or personal saves.
+`tools/package.py` verifies the built kernel and converter hashes, then writes the two minimal installation ZIPs under `dist/`. Each contains `SD_CARD`, `Label Converter.exe` and `README.txt`. Generated demo artwork and emulator captures are local test output and are not committed or packaged.
 
 The release version is `v1.0`, defined in [common/slot_version.h](../common/slot_version.h). Upstream sources are pinned in [UPSTREAM.json](../UPSTREAM.json); backend deltas are in `patches/`.
 
