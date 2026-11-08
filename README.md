@@ -42,11 +42,9 @@ Edit the included **`USERNAME.TXT`** on your card. Its first line displays up to
 | B | GBA boot options / return |
 | Start | Settings |
 
-Open **Settings → Help** for all controls. For **GBA Addon** games, hold **Select for three seconds** to return to the carousel and eject the cartridge, or press **Start + Select** for the in-game menu. Enable **Select hold** and **Save states** in Settings to use these features.
+Open **Settings → Help** for all controls. In **GBA Addon, GB and GBC games**, press **Start + Select** for the in-game menu, or hold **Select for three seconds** to return to the carousel and eject the cartridge. Enable **Select hold** in Settings; **Save states** enables save/load in the GBA Addon menu.
 
-GB/GBC games use the same **Start + Select** menu shortcut and **Select-hold** return. Choosing **Exit** in the emulator menu also returns and ejects the cartridge.
-
-SGB borders are disabled. GB/GBC exits fade through black back to the carousel.
+GB/GBC games run without SGB borders and fade through black when exiting. Choosing **Exit** in the emulator menu also returns and ejects the cartridge.
 
 ## Credits
 

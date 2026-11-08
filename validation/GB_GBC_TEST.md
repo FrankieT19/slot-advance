@@ -1,6 +1,6 @@
-# Offline GB/GBC return test
+# GB/GBC return and fade validation
 
-Published v1.1 is unchanged. This local revision adds Start+Select for the GB/GBC emulator menu, a three-second Select-hold exit, and matching GB/GBC cartridge ejection after returning to the kernel. The Select hold setting applies to both native GBA Addons and GB/GBC games. Emulator Restart remains inside the emulator.
+Version 1.1 includes Start+Select for the GB/GBC emulator menu, a three-second Select-hold exit, and matching GB/GBC cartridge ejection after returning to the kernel. The Select hold setting applies to both native GBA Addons and GB/GBC games. Emulator Restart remains inside the emulator. The maintainer confirmed the final fade fix on Omega DE hardware; original Omega hardware was not available in this run.
 
 This revision disables SGB borders on every launch, removes the unused border toggle and masks border flags restored by older save states. Game palettes remain supported. Exits fade the existing display to black and restore black immediately after the register-only BIOS reset, during VBlank, before entering the kernel's existing fade-in/eject path.
 

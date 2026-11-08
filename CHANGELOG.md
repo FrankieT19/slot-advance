@@ -1,7 +1,9 @@
 # v1.1
 
-- Reworked the in-game menu with the DS Style font and a cleaner layout.
-- Returning from a GBA Addon game to the menu now ejects the cartridge, with slot.'s animation and sound.
+- Reworked the GBA in-game menu with the DS Style font and a cleaner layout.
+- Consistent Start + Select menu and three-second Select-hold return controls across GBA Addon, GB and GBC games.
+- Cartridge ejection with slot.'s animation and sound when returning from a game.
+- GB/GBC games run without SGB borders and fade smoothly through black when exiting.
 - Removed background settings writes that could stall carousel navigation.
 
 # v1.0
