@@ -1,6 +1,6 @@
 # slot. advance
 
-slot. advance is a port of [slot.](https://github.com/slot-cfw/slot) for **EZ-FLASH Omega** and the original **Omega Definitive Edition**, using [DS Style](https://github.com/FrankieT19/omega-de-ds-style-kernel) as its underlying framework.
+slot. advance is a port of [slot.](https://github.com/slot-cfw/slot) for the GBA, running on the **EZ-FLASH Omega** and the original **Omega Definitive Edition**, using [DS Style](https://github.com/FrankieT19/omega-de-ds-style-kernel) as its underlying framework.
 
 Cartridge carousels for GBA, GB and GBC, with label artwork, cartridge colours, and Wood, Dark and Light themes.
 
