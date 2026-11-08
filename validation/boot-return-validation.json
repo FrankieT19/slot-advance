@@ -1,0 +1,5 @@
+{
+  "status": "pass",
+  "checks": 4,
+  "scope": "Patched real devkitARM CRT: cold boot rejects cookie; soft re-entry preserves cookie while clearing other EWRAM; emulator hard reset removes cookie. Cartridge firmware before kernel entry still requires hardware verification."
+}

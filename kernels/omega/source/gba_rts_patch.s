@@ -566,7 +566,13 @@ loopbak:
 
 
     mov r11,#0
+    bl Slot_MenuPanel
+    adrl r0,spend_0x80
+    ldr r0,[r0]
+    mvn r1,#0
+    str r1,[r0,#0x2c] @ Previous selection; unused gap before saved system SP.
 begin_show:
+    bl Slot_MenuVBlank
     adrl r7,Cheat_count
     ldr r7,[r7]
     cmp r7,#0
@@ -576,10 +582,28 @@ begin_show:
     sublt r11,r6,#1
     cmp r11,r6
     movge r11,#0
-    bl Slot_MenuPanel
     mov r12,#0
     mov r9,#52
 menu_row:
+    adrl r0,spend_0x80
+    ldr r0,[r0]
+    ldr r0,[r0,#0x2c]
+    cmn r0,#1
+    beq menu_draw_row
+    cmp r12,r0
+    beq menu_draw_row
+    cmp r12,r11
+    bne menu_next_row
+menu_draw_row:
+    mov r0,#25
+    sub r1,r9,#1
+    mov r2,#190
+    mov r3,#14
+    adrl r4,Slot_RTS_Panel
+    ldr r4,[r4]
+    cmp r12,r11
+    ldreq r4,=0x1d09
+    bl Slot_MenuRect
     adrl r8,Slot_MenuLabels
     ldr r0,[r8,r12,lsl #2]
     add r8,r8,r0
@@ -633,6 +657,9 @@ menu_next_row:
     movne r7,#5
     cmp r12,r7
     blt menu_row
+    adrl r0,spend_0x80
+    ldr r0,[r0]
+    str r11,[r0,#0x2c]
 waitSeletc:
     ldr r0,=0x3ff
     ldr r8,=0x4000130
@@ -1112,14 +1139,6 @@ Slot_MenuPanel:
     adrl r4,Slot_RTS_Panel
     ldr r4,[r4]
     bl Slot_MenuRect
-    mov r0,#25
-    add r1,r11,r11,lsl #3
-    mov r1,r1,lsl #1
-    add r1,r1,#51
-    mov r2,#190
-    mov r3,#14
-    ldr r4,=0x1d09
-    bl Slot_MenuRect
     adrl r0,Slot_MenuTitle
     mov r1,#30
     mov r2,#25
@@ -1127,6 +1146,18 @@ Slot_MenuPanel:
     ldr r3,[r3]
     bl Slot_MenuText
     ldmfd sp!,{pc}
+@ Poll VCOUNT: game IRQs are disabled while the menu owns the display.
+Slot_MenuVBlank:
+    ldr r0,=0x04000006
+Slot_MenuWaitVisible:
+    ldrh r1,[r0]
+    cmp r1,#160
+    bhs Slot_MenuWaitVisible
+Slot_MenuWaitBlank:
+    ldrh r1,[r0]
+    cmp r1,#160
+    blo Slot_MenuWaitBlank
+    bx lr
 Slot_MenuRect:
     mov r5,#240
     mla r5,r1,r5,r0

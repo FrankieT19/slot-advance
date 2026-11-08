@@ -74,14 +74,22 @@ def main():
                     assert (min(pixel)>240)==ink,(char,row,col,pixel,ink)
                     checks+=1
     text_mask('Resume',31,52)
+    # Pixels outside the two changed rows must not be touched on a move.
+    # Sentinels catch full-screen/panel clears even if final screenshots match.
+    assert e.vram,'mGBA did not expose VRAM'
+    sentinels=[(10,10),(220,25),(210,90)]
+    for x,y in sentinels:C.c_ushort.from_address(e.vram[0]+2*(y*240+x)).value=0x7c1f
     press(5);press(8);assert result(2)==1;checks+=1  # disabled Save state
+    for x,y in sentinels:
+        assert C.c_ushort.from_address(e.vram[0]+2*(y*240+x)).value==0x7c1f,(x,y,'unrelated menu pixels repainted')
+        checks+=1
     press(5);press(8);assert result(2)==1;checks+=1  # disabled Load state
     press(0);e.run(20);assert result(2)==0 and result(1)==result(3) and result(6)==0x40,tuple(result(i) for i in range(9));checks+=3
     command(2);open_menu();shot('menu-light.png');text_mask('Resume',31,52)
     press(8);e.run(20);assert result(2)==0 and result(1)==result(3);checks+=2
     command(1);command(3);open_menu();press(5);press(5);press(5);press(8);shot('menu-cheats.png')
     assert result(2)==1;press(0);e.run(20);assert result(7)==1 and result(1)==result(3);checks+=3
-    report={'status':'pass','checks':checks,'failed':0,'scope':'Actual addon menu/return-marker assembly in mGBA with emulated SRAM banks: native glyph pixels, selection, disabled states, resume VRAM/blend restoration, cheat toggle, warm cookie and cold-start rejection. Real cartridge mapper/reset/SD timing and save/load-state IO still require hardware.'}
+    report={'status':'pass','checks':checks,'failed':0,'scope':'Actual addon menu/return-marker assembly in mGBA with emulated SRAM banks: native glyph pixels, dirty-row-only navigation with unrelated VRAM sentinels, selection, disabled states, resume VRAM/blend restoration, cheat toggle, warm cookie and cold-start rejection. Real cartridge mapper/reset/SD timing and save/load-state IO still require hardware.'}
     (ROOT/'validation/addon-menu-validation.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
     print(json.dumps(report,indent=2))
 if __name__=='__main__':main()

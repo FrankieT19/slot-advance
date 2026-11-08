@@ -20,3 +20,25 @@ Slot_BlackEntry:
 Slot_BlackIO: .word 0x04000000
 Slot_BlackMode: .word 0x0403
 Slot_OriginalEntry: .word 0x12345678
+
+/* devkitARM clears all EWRAM even on a soft return. Preserve only the
+   16-byte powered-session cookie around that clear, before C startup.
+   A power-on BIOS clear still erases it, excluding cold boots. */
+.thumb
+.thumb_func
+Slot_ClearWorkRam:
+    push {r4-r7,lr}
+    ldr r2,Slot_WarmMailbox
+    ldmia r2!,{r4-r7}
+    ldr r3,Slot_OriginalClear
+    bl Slot_CallClear
+    ldr r2,Slot_WarmMailbox
+    stmia r2!,{r4-r7}
+    pop {r4-r7}
+    pop {r3}
+    bx r3
+Slot_CallClear:
+    bx r3
+.align 2
+Slot_WarmMailbox: .word 0x0203fff0
+Slot_OriginalClear: .word 0x23456789

@@ -70,6 +70,9 @@ static char card_root[1024],mock_cwd[256]="/";
 static unsigned io_short_write,io_fail_read,io_read_calls,io_fail_rename,io_dir_error,io_dir_calls;
 static unsigned io_max_read;
 static unsigned io_short_read;
+static unsigned io_write_calls,loop_active,loop_calls;
+static jmp_buf loop_exit;
+static void mock_carousel_key(void);
 static unsigned mock_keys[128],mock_event,mock_key,mock_boots,mock_boot_index,mock_waits;
 static void map_path(const char *name,char *out)
 {
@@ -92,6 +95,7 @@ static int f_read(FIL *f,void *p,unsigned n,UINT *got)
 }
 static int f_write(FIL *f,const void *p,unsigned n,UINT *got)
 {
+    io_write_calls++;
     if(io_short_write) n/=2;
     *got=(UINT)fwrite(p,1,n,f->file);return ferror(f->file)?FR_DISK_ERR:FR_OK;
 }
@@ -145,7 +149,10 @@ static void setRepeat(unsigned a,unsigned b) { (void)a;(void)b; }
 static void UIAudio_Update(void) {}
 static void UIAudio_PlaySfx(unsigned id) { if(id==UI_SFX_EJECT)eject_sounds++; }
 static void UIAudio_PlayBack(void) {}
-static void scanKeys(void) { mock_key=mock_keys[mock_event<127?mock_event++:127]; }
+static void scanKeys(void) {
+    if(loop_active){mock_carousel_key();return;}
+    mock_key=mock_keys[mock_event<127?mock_event++:127];
+}
 static unsigned keysHeld(void){return mock_key;}
 static unsigned keysDown(void) { return mock_key; }
 static unsigned keysDownRepeat(void) { return 0; } /* Assert first-press handling works. */
@@ -169,6 +176,12 @@ static void rtc_enable(void){}
 static void rtc_disenable(void){}
 static void rtc_gettime(unsigned char *time){time[0]=0x14;time[1]=0x32;time[2]=0;}
 #include "slot_frontend.h"
+static void mock_carousel_key(void)
+{
+    if(++loop_calls>250)longjmp(loop_exit,1);
+    mock_key=loop_calls==115 || loop_calls==119?KEY_RIGHT:0;
+    SlotNav_Tick(&slot_navigation,mock_key,loop_calls*17);
+}
 static unsigned checks,failed;
 #define CHECK(x) do {checks++;if(!(x)){failed++;printf("FAIL line %d: %s\n",__LINE__,#x);}} while(0)
 static void put_file(const char *name,const void *data,unsigned bytes)
@@ -438,6 +451,15 @@ static void eject_tests(void)
     CHECK(centre_hash()==rest && !slot_return_pending && eject_sounds==1);
 }
 __declspec(dllexport) unsigned Slot_HostStreamFrames(void){return stream_steady_frames;}
+static void carousel_loop_tests(void)
+{
+    slot_config_dirty=1;io_write_calls=0;loop_calls=0;loop_active=1;
+    if(!setjmp(loop_exit))Slot_Run();
+    loop_active=0;Slot_CancelArt();
+    CHECK(loop_calls==251);CHECK(slot_navigation.steps==2);
+    CHECK(io_write_calls==0);CHECK(slot_config_dirty);
+    CHECK(slot_navigation.enabled);
+}
 __declspec(dllexport) unsigned Slot_HostCheckCount(void){return checks;}
 __declspec(dllexport) int main(int argc,char **argv)
 {
@@ -445,7 +467,7 @@ __declspec(dllexport) int main(int argc,char **argv)
     memory=VirtualAlloc((void*)SLOT_CACHE_BASE,0x30000,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);
     if(memory!=(void*)SLOT_CACHE_BASE){printf("Cannot map mock PSRAM\n");return 2;}
     slot_frame=(uint16_t*)pReadCache;f_mkdir("/SYSTEM");f_mkdir(SLOT_DIR);
-    config_tests();image_tests();scan_tests();username_tests();menu_tests();refinement_tests();streaming_tests();eject_tests();
+    config_tests();image_tests();scan_tests();username_tests();menu_tests();refinement_tests();streaming_tests();eject_tests();carousel_loop_tests();
     printf("Frontend host integration: %u checks, %u failed\n",checks,failed);
     VirtualFree(memory,0,MEM_RELEASE);return failed?1:0;
 }

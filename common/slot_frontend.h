@@ -514,7 +514,7 @@ static void Slot_EjectReplay(void)
 }
 static void Slot_Run(void)
 {
-    unsigned redraw=1,idle=0,nav_index,steps,ejected=0;int pose=0,last_pose=0,last_base=0;
+    unsigned redraw=1,nav_index,steps,ejected=0;int pose=0,last_pose=0,last_base=0;
     slot_frame=(uint16_t*)pReadCache;slot_platform=0;
 #ifdef __arm__
     /* Offline-test diagnostic only, after the backend has recovered saves.
@@ -557,8 +557,8 @@ static void Slot_Run(void)
         Slot_NavSnapshot(&nav_index,&pose,&steps);
         if(slot_index[slot_platform]!=nav_index){slot_index[slot_platform]=nav_index;slot_config_dirty=1;Slot_ReadTitle();}
         if(slot_vblanks%60==0 && Slot_RefreshClock())redraw=1;
-        if(down || pose)idle=0;else if(idle<90)idle++;
-        if(idle==90 && slot_config_dirty){Slot_SaveConfig();idle++;}
+        /* Persist at launch or when leaving Settings. FAT rename/sync work
+           must never block a new carousel tap after the spring settles. */
         if(down&(KEY_L|KEY_R|KEY_UP|KEY_DOWN)) {
             Slot_CancelArt();Slot_ClearNav();Slot_ChangeShelf(down&(KEY_L|KEY_UP)?-1:1);modal=1;
         } else if(down&KEY_START) {

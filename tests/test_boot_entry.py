@@ -3,7 +3,7 @@ from pathlib import Path
 import struct,sys,unittest
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools'))
-from boot_entry import patch_black_entry,arm_branch_target
+from boot_entry import patch_black_entry,arm_branch_target,thumb_bl,thumb_bl_target
 
 class BootEntryTests(unittest.TestCase):
     def fixture(self):
@@ -12,15 +12,24 @@ class BootEntryTests(unittest.TestCase):
         struct.pack_into('<I',data,0,0xea00002e)
         struct.pack_into('<I',data,0xc0,0xea000006)
         struct.pack_into('<I',data,0xe0,0xe3a00301)
+        data[0x126:0x12c]=bytes.fromhex('40210903c801')
+        data[0x12c:0x130]=thumb_bl(0x12c,0x188)
         return data
 
     def test_header_and_secondary_vector_remain_intact(self):
-        original=self.fixture();code=struct.pack('<II',0xe3a00301,0x12345678)
+        original=self.fixture();code=struct.pack('<III',0xe3a00301,0x12345678,0x23456789)
         patched=patch_black_entry(original,code)
         self.assertEqual(patched[:0xe0],original[:0xe0])
-        self.assertEqual(patched[0xe4:len(original)],original[0xe4:])
+        self.assertEqual(patched[0xe4:0x12c],original[0xe4:0x12c])
+        self.assertEqual(patched[0x130:len(original)],original[0x130:])
         self.assertEqual(arm_branch_target(patched,0xe0),len(original))
-        self.assertEqual(struct.unpack_from('<I',patched,len(patched)-4)[0],0x080000e4)
+        self.assertEqual(struct.unpack_from('<I',patched,len(patched)-8)[0],0x080000e4)
+        self.assertEqual(thumb_bl_target(patched,0x12c),len(original)+60)
+
+    def test_rejects_unknown_work_ram_clear(self):
+        original=self.fixture();original[0x126]^=1
+        with self.assertRaisesRegex(RuntimeError,'Unsupported CRT EWRAM clear'):
+            patch_black_entry(original,struct.pack('<II',0x12345678,0x23456789))
 
     def test_rejects_the_02_header_regression(self):
         original=self.fixture();struct.pack_into('<I',original,0,0xea063f7c)
@@ -43,8 +52,9 @@ class BootEntryTests(unittest.TestCase):
                 self.assertLessEqual(len(data),2*1024*1024)
                 target=arm_branch_target(data,0xe0)
                 # Source-built stub replays MOV r0, IO_BASE, then returns to E4.
-                self.assertEqual(len(data)-target,60)
+                self.assertGreater(len(data)-target,60)
                 self.assertEqual(struct.unpack_from('<I',data,target+40)[0],0xe3a00301)
                 self.assertEqual(struct.unpack_from('<I',data,target+56)[0],0x080000e4)
+                self.assertEqual(thumb_bl_target(data,0x12c),target+60)
 
 if __name__=='__main__':unittest.main(verbosity=2)

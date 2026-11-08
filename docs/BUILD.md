@@ -45,6 +45,7 @@ python tools/test_navigation.py --tcc path/to/tcc
 python tools/test_startup_save.py --tcc path/to/tcc
 python tools/test_return_io.py --tcc path/to/tcc
 python tools/test_addon_menu.py --core path/to/mgba_libretro.dll
+python tools/test_boot_return.py --core path/to/mgba_libretro.dll
 ```
 
 The Windows host harness uses TinyCC and a disposable mock SD card. The preview is a normal GBA ROM with fictional labels, built from the shared renderer. Neither substitutes for testing the physical flashcart, its SD bus, save write-back or game compatibility. Exact results and memory sizes are in [validation/REPORT.md](../validation/REPORT.md).

@@ -756,7 +756,7 @@ u32 Check_pat(TCHAR* gamefilename)
 
 	TCHAR patnamebuf[100];
 	make_pat_name(patnamebuf,gamefilename);
-	res=f_chdir("/SYSTEM/PATCH/SLOT11");
+	res=f_chdir("/SYSTEM/PATCH/SLOT112");
 	if(res == FR_OK)
 	{
 		res = f_open(&gfile,patnamebuf, FA_READ);
@@ -804,8 +804,8 @@ void Make_pat_file(TCHAR* gamefilename)
 	u32 w_buffer[16];
 
 	res = f_mkdir("/SYSTEM/PATCH");
-    f_mkdir("/SYSTEM/PATCH/SLOT11");
-	res=f_chdir("/SYSTEM/PATCH/SLOT11");
+    f_mkdir("/SYSTEM/PATCH/SLOT112");
+	res=f_chdir("/SYSTEM/PATCH/SLOT112");
 
 	memset(w_buffer, 0x00, sizeof(w_buffer));
 
