@@ -55,6 +55,14 @@ void Slot_JagoombaFadeBlack(void);
 \taddne r12,r12,#1
 \tstrne r12,[r3]
 \t\tldrne r12,vblankfptr''')
+    # Keep the normal raster-DMA lifecycle alive through the exit fade. Apply
+    # the latched fade after IRQ handlers restore their own window/blend state.
+    edit('lcd.s','irq0:\n\tldmfd sp!,{lr}','''irq0:
+\tldr r0,=Slot_JagoombaFadeRequested
+\tldr r0,[r0]
+\tcmp r0,#0
+\tblne_long Slot_JagoombaApplyFade
+\tldmfd sp!,{lr}''')
     # Hold-exit pauses at the same frame boundary as the menu and uses the
     # existing SRAM backup. A failed backup leaves the emulator menu usable.
     edit('ui.c','\tselected=0;\n\tmain_ui_selection = selected;','''\tif(Slot_JagoombaTakeExit()) {

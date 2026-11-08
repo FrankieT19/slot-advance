@@ -5,11 +5,14 @@
 #include "slot_emulator_fade.h"
 extern int main_ui_selection;
 EWRAM_BSS volatile unsigned Slot_JagoombaVBlanks;
+EWRAM_BSS volatile unsigned Slot_JagoombaFadeRequested;
+static EWRAM_BSS volatile unsigned slot_fade_clock,slot_fade_level;
 static EWRAM_BSS SlotEmulatorControls slot_keys;
 static EWRAM_BSS unsigned slot_hold_enabled,slot_exit_requested;
 #ifdef SLOT_EMULATOR_TEST
 EWRAM_BSS SlotReturnRecord Slot_JagoombaTestRecord;
 EWRAM_BSS volatile unsigned Slot_JagoombaTestPage,Slot_JagoombaTestExit,Slot_JagoombaTestMenus;
+EWRAM_BSS volatile unsigned Slot_JagoombaTestFadeLine,Slot_JagoombaTestFadeDMA,Slot_JagoombaTestFadeStarted;
 #endif
 static __attribute__((section(".ewram"),long_call,noinline)) void slot_sram_page(unsigned page)
 {
@@ -45,6 +48,7 @@ void Slot_JagoombaInit(void)
     slot_hold_enabled=slot_read_context(&record)?!!(record.options&SLOT_RETURN_HOLD_ENABLED):1;
     memset(&slot_keys,0,sizeof(slot_keys));slot_exit_requested=0;
     Slot_JagoombaVBlanks=0;main_ui_selection=-1;
+    Slot_JagoombaFadeRequested=0;slot_fade_clock=0;slot_fade_level=0;
 }
 unsigned Slot_JagoombaInput(unsigned held)
 {
@@ -66,7 +70,33 @@ void Slot_JagoombaResume(void)
 }
 void Slot_JagoombaFadeBlack(void)
 {
-    Slot_EmulatorFadeBlack();
+    unsigned level;
+#ifdef SLOT_EMULATOR_TEST
+    if(Slot_JagoombaTestFadeLine){
+        while(*(volatile uint16_t*)0x04000006!=Slot_JagoombaTestFadeLine){}
+    }
+    Slot_JagoombaTestFadeDMA=REG_DM1CNT_H;
+    Slot_JagoombaTestFadeStarted=1;
+#endif
+    /* The GB CPU is already paused by ui(). Keep the GBA display interrupts
+       running: they stop/rewind HBlank DMA at the ends of frames. */
+    slot_fade_clock=Slot_JagoombaVBlanks;slot_fade_level=0;
+    for(level=0;level<=16;level+=2){
+        unsigned previous=slot_fade_clock;
+        Slot_JagoombaFadeRequested=level+1;
+        Slot_EmulatorWaitBlank();
+        while(slot_fade_clock==previous || slot_fade_level!=level){}
+    }
+    Slot_EmulatorHoldBlack();Slot_JagoombaFadeRequested=0;
+}
+/* Called after display IRQs, which also change blending and window registers.
+   Latch a new level only on a new VBlank, so VCount IRQs cannot step it mid-row. */
+void Slot_JagoombaApplyFade(void)
+{
+    unsigned requested=Slot_JagoombaFadeRequested,clock=Slot_JagoombaVBlanks;
+    if(!requested)return;
+    if(clock!=slot_fade_clock){slot_fade_level=requested-1;slot_fade_clock=clock;}
+    Slot_EmulatorApplyFade(slot_fade_level);
 }
 void Slot_JagoombaMarkReturn(void)
 {

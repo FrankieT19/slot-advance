@@ -7,7 +7,7 @@ from pathlib import Path
 import argparse,ctypes as C,json,struct
 from test_preview import Emulator
 ROOT=Path(__file__).resolve().parents[1]
-def gb_rom(color):
+def gb_rom(color,lcd_on=True):
     data=bytearray(32768);data[0x100:0x104]=bytes.fromhex('00c35001')
     data[0x104:0x134]=bytes.fromhex('CE ED 66 66 CC 0D 00 0B 03 73 00 83 00 0C 00 0D 00 08 11 1F 88 89 00 0E DC CC 6E E6 DD DD D9 99 BB BB 67 63 6E 0E EC CC DD DC 99 9F BB B9 33 3E')
     data[0x134:0x13f]=b'SLOT SAVE 1';data[0x143]=0x80 if color else 0
@@ -28,6 +28,15 @@ def gb_rom(color):
     for value in bytes([0xa1])+bytes(15):
         for bit in range(8):pulse(0x10 if value&(1<<bit) else 0x20);pulse(0x30)
     pulse(0x20);pulse(0x30)
+    # Keep the virtual LCD active. Exit must preserve Jagoomba's real scanline
+    # DMA scheduling; an LCD-off fixture cannot catch a raster-DMA overrun.
+    code+=bytes.fromhex('210080')
+    for i in range(16):code+=bytes([0x3e,0xaa if i&1 else 0x55,0x22])
+    code+=bytes.fromhex('3ee4e047')
+    if color:
+        code+=bytes.fromhex('3e80e068')
+        for value in bytes.fromhex('1f00e003007c2104'):code+=bytes([0x3e,value,0xe0,0x69])
+    if lcd_on:code+=bytes.fromhex('3e91e040')
     loop=0x150+len(code);code+=b'\x00\xc3'+struct.pack('<H',loop)
     code[branch+1]=already-branch-2;struct.pack_into('<H',code,jump+1,0x150+store)
     data[0x150:0x150+len(code)]=code
@@ -37,12 +46,12 @@ def gb_rom(color):
     return data
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--core',type=Path,required=True)
-    p.add_argument('--build-root',type=Path,default=ROOT/'work/emulator-test');p.add_argument('--target',choices=['omega','omega-de'],default='omega-de');a=p.parse_args()
-    folder=a.build_root.resolve()/a.target;work=ROOT/'work/emulator-validation'/a.target;work.mkdir(parents=True,exist_ok=True)
+    p.add_argument('--build-root',type=Path,default=ROOT/'work/emulator-test');p.add_argument('--target',choices=['omega','omega-de'],default='omega-de');p.add_argument('--lcd-off',action='store_true');a=p.parse_args()
+    folder=a.build_root.resolve()/a.target;work=ROOT/'work/emulator-validation'/a.target/('lcd-off' if a.lcd_off else 'lcd-on');work.mkdir(parents=True,exist_ok=True)
     addresses={l.split()[-1]:int(l.split()[0],16) for l in (folder/'symbols.txt').read_text().splitlines() if len(l.split())==3}
     total=0;results=[]
     for color in (False,True):
-        path=work/('test-gbc.gba' if color else 'test-gb.gba');path.write_bytes((folder/'jagoomba.gba').read_bytes()+gb_rom(color))
+        path=work/('test-gbc.gba' if color else 'test-gb.gba');path.write_bytes((folder/'jagoomba.gba').read_bytes()+gb_rom(color,not a.lcd_off))
         e=Emulator(a.core);e.load(path);e.run(180)
         def pointer(address):
             if 0x02000000<=address<0x02040000:return e.ewram[0]+address-0x02000000
@@ -78,11 +87,30 @@ def main():
         press([10,11]);check(value('Slot_JagoombaTestMenus')==0,'L+R no longer opens menu')
         press([2],20);check(not value('Slot_JagoombaTestExit'),'short Select does not exit')
         press([2,3],30);check(value('Slot_JagoombaTestMenus')==1,'Start+Select opens once while held')
+        e.frame.save(work/('gbc-menu.png' if color else 'gb-menu.png'))
         check(not value('Slot_JagoombaTestExit'),'menu chord cannot trigger hold exit')
         press([0]);check(value('main_ui_selection')==0xffffffff,'B resumes game')
+        e.frame.save(work/('gbc-game.png' if color else 'gb-game.png'))
         check(counter()==1,'resume does not restart ROM')
-        arm();e.keys={2};e.run(170);check(not value('Slot_JagoombaTestExit'),'hold does not fire early')
-        e.run(40);e.keys=set();e.run(40)
+        arm();set_value('Slot_JagoombaTestFadeLine',80)
+        e.keys={2};e.run(170);check(not value('Slot_JagoombaTestExit'),'hold does not fire early')
+        striped_frames=0;fade_frames=0;fade_luminance=[]
+        for i in range(40):
+            e.run(1)
+            if value('Slot_JagoombaTestFadeStarted') and not value('Slot_JagoombaTestExit'):
+                fade_frames+=1
+                pixels=e.frame.crop((80,20,160,140)).tobytes();fade_luminance.append(round(sum(pixels)/len(pixels),2))
+                if color and not a.lcd_off:
+                    white=sum(min(e.frame.getpixel((120,y)))>=235 for y in range(20,140))
+                    if white>8:
+                        striped_frames+=1;e.frame.save(work/f'bad-raster-{i}.png')
+        e.keys=set();e.run(40)
+        check(value('Slot_JagoombaTestFadeDMA')&0x8000,'fade begins with scanline DMA active')
+        check(fade_frames>=5,'captured intermediate fade frames')
+        # The synthetic SGB-only palette can legitimately already be black.
+        if max(fade_luminance)>10:
+            check(len(set(fade_luminance))>=5,'fade has gradual intermediate brightness levels: '+str(fade_luminance))
+        check(striped_frames==0,'LCD-on GBC fade has no white raster rows')
         check(value('Slot_JagoombaTestExit')==1,'Select hold exits through menu/save path')
         check(max(e.frame.tobytes())==0,'Select-hold exit fades every display area to black')
         check(value('Slot_JagoombaTestPage')==0,'return restores save bank zero')
@@ -100,7 +128,14 @@ def main():
         set_value('slot_hold_enabled',0);press([2],220)
         check(not value('Slot_JagoombaTestExit'),'Select hold setting respected')
         press([2,3]);check(value('Slot_JagoombaTestMenus')==1,'menu works with hold disabled')
-        arm();press([4]);press([8],after=60)
+        arm();set_value('Slot_JagoombaTestFadeLine',80);press([4])
+        e.keys={8};e.run(1);e.keys=set();menu_fade_luminance=[]
+        for i in range(60):
+            e.run(1)
+            if value('Slot_JagoombaTestFadeStarted') and not value('Slot_JagoombaTestExit'):
+                pixels=e.frame.crop((0,16,200,144)).tobytes()
+                menu_fade_luminance.append(round(sum(pixels)/len(pixels),3))
+        check(len(set(menu_fade_luminance))>=5,'visible emulator menu fades gradually: '+str(menu_fade_luminance))
         check(value('Slot_JagoombaTestExit')==1,'manual menu Exit uses return hook')
         check(max(e.frame.tobytes())==0,'manual Exit also fades to black')
         e.lib.retro_reset();e.run(180)
@@ -108,9 +143,9 @@ def main():
         press([2,3]);press([4]);press([4]);press([8],after=100)
         check(not value('Slot_JagoombaTestExit'),'Restart does not return or eject')
         check(counter()==4,'Restart restarts the GB ROM')
-        results.append({'system':'GBC' if color else 'GB','save_roundtrip':True,'hold_exit':True,'menu_exit':True,'cold_boot':True,'restart_stays_in_emulator':True,'sgb_borders_disabled':True,'black_exit_fade':True})
+        results.append({'system':'GBC' if color else 'GB','save_roundtrip':True,'hold_exit':True,'menu_exit':True,'cold_boot':True,'restart_stays_in_emulator':True,'sgb_borders_disabled':True,'black_exit_fade':True,'fade_entry_scanline':80,'fade_entry_dma_active':True,'fade_luminance':fade_luminance,'menu_fade_luminance':menu_fade_luminance,'white_striped_frames':striped_frames})
         e.close()
-    report={'status':'pass','target':a.target,'checks':total,'results':results,'scope':'Full modified emulator with homebrew GB/GBC ROMs: actual CPU, VBlank clock, menu and battery SRAM handling. Cartridge SRAM banking and the final kernel/FPGA reboot use test shims and still require physical testing.'}
-    (ROOT/('validation/emulator-'+a.target+'-validation.json')).write_text(json.dumps(report,indent=2)+'\n')
+    report={'status':'pass','target':a.target,'lcd_on':not a.lcd_off,'checks':total,'results':results,'scope':'Full modified emulator with homebrew GB/GBC ROMs: actual CPU, VBlank clock, menu, raster DMA, fade frames and battery SRAM handling. Fade starts at scanline 80 with DMA enabled. Cartridge SRAM banking and the final kernel/FPGA reboot use test shims and still require physical testing.'}
+    (ROOT/('validation/emulator-'+a.target+('-lcd-off' if a.lcd_off else '')+'-validation.json')).write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))
 if __name__=='__main__':main()

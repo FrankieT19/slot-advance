@@ -1,0 +1,77 @@
+{
+  "status": "pass",
+  "target": "omega-de",
+  "lcd_on": false,
+  "checks": 67,
+  "results": [
+    {
+      "system": "GB",
+      "save_roundtrip": true,
+      "hold_exit": true,
+      "menu_exit": true,
+      "cold_boot": true,
+      "restart_stays_in_emulator": true,
+      "sgb_borders_disabled": true,
+      "black_exit_fade": true,
+      "fade_entry_scanline": 80,
+      "fade_entry_dma_active": true,
+      "fade_luminance": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "menu_fade_luminance": [
+        20.652,
+        18.036,
+        15.404,
+        12.73,
+        10.242,
+        7.628,
+        4.979,
+        2.311
+      ],
+      "white_striped_frames": 0
+    },
+    {
+      "system": "GBC",
+      "save_roundtrip": true,
+      "hold_exit": true,
+      "menu_exit": true,
+      "cold_boot": true,
+      "restart_stays_in_emulator": true,
+      "sgb_borders_disabled": true,
+      "black_exit_fade": true,
+      "fade_entry_scanline": 80,
+      "fade_entry_dma_active": true,
+      "fade_luminance": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "menu_fade_luminance": [
+        20.652,
+        18.036,
+        15.404,
+        12.73,
+        10.242,
+        7.628,
+        4.979,
+        2.311
+      ],
+      "white_striped_frames": 0
+    }
+  ],
+  "scope": "Full modified emulator with homebrew GB/GBC ROMs: actual CPU, VBlank clock, menu, raster DMA, fade frames and battery SRAM handling. Fade starts at scanline 80 with DMA enabled. Cartridge SRAM banking and the final kernel/FPGA reboot use test shims and still require physical testing."
+}

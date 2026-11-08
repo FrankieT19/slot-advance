@@ -4,9 +4,11 @@ Published v1.1 is unchanged. This local revision adds Start+Select for the GB/GB
 
 This revision disables SGB borders on every launch, removes the unused border toggle and masks border flags restored by older save states. Game palettes remain supported. Exits fade the existing display to black and restore black immediately after the register-only BIOS reset, during VBlank, before entering the kernel's existing fade-in/eject path.
 
+The previous fade disabled IRQs while HBlank DMA could still be active. Without the VCount stop and VBlank rewind, DMA consumed data beyond its frame buffers and wrote alternating forced-blank rows. An active-LCD fixture starting the fade at scanline 80 reproduced the exact black/white pattern in the previous code. The corrected fade keeps the display IRQ pipeline alive, latches brightness at VBlank and stops DMA only after reaching full black.
+
 Validation passed:
 
-- 59 full-emulator assertions per cartridge build (118 total), using self-authored GB/GBC battery-save ROMs: menu/release controls, short Select presses, hold/Exit, saved-data round trips, Restart, return markers, IWRAM canaries, real SGB border packets, stale border-state masks and black exit frames.
+- 67 full-emulator assertions per cartridge/LCD-mode combination (268 total), using self-authored GB/GBC battery-save ROMs with LCD enabled and disabled: menu/release controls, short Select presses, hold/Exit, saved-data round trips, Restart, return markers, IWRAM canaries, SGB packets, stale border masks, active raster DMA and intermediate fade frames. Both builds produce zero striped frames, and the visible menu fades through eight decreasing brightness levels.
 - Six reset/transition checks execute the production copied reset stub, BIOS calls and CRT; captured frames fade out, remain black during handoff and fade in without a white frame in mGBA.
 - 2,513 controls checks, including the physical-VBlank threshold, fast-forward repeated samples, chord priority and clock wrap.
 - 2,632 actual frontend host checks, including GB/GBC shelf restoration and exact reversed insertion frames for all three systems.
