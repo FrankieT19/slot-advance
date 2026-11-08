@@ -49,8 +49,12 @@ def build(target: str,dk: Path,build_root: Path):
         if match: sections.append((match[1],int(match[2]),int(match[3])))
     ewram_end=max([0x02000000]+[addr+n for name,n,addr in sections if 0x02000000<=addr<0x02040000])
     iwram_end=max([0x03000000]+[addr+n for name,n,addr in sections if 0x03000000<=addr<0x03008000])
-    if ewram_end>0x02040000:raise RuntimeError('EWRAM overflow')
+    if ewram_end>0x0203fff0:raise RuntimeError('EWRAM overlaps the warm-return mailbox')
     if iwram_end>0x03007000:raise RuntimeError('IWRAM static data leaves less than the reserved stack budget')
+    symbols=run([tool_path(dk/'devkitARM/bin','arm-none-eabi-nm'),'-n',elf],out/'symbols.txt')
+    addresses={line.split()[-1]:int(line.split()[0],16) for line in symbols.splitlines() if len(line.split())==3}
+    addon_bytes=addresses['RTS_ReplaceIRQ_end']-addresses['RTS_ReplaceIRQ_start']
+    if addon_bytes>0x2000:raise RuntimeError('Addon exceeds its reserved 8 KiB ROM patch window')
     ram={'ewram_static_bytes':ewram_end-0x02000000,'ewram_free_bytes':0x02040000-ewram_end,
          'iwram_static_bytes':iwram_end-0x03000000,'iwram_headroom_to_user_stack_bytes':0x03007f00-iwram_end}
     validation=ROOT/'validation';validation.mkdir(exist_ok=True)
@@ -59,7 +63,7 @@ def build(target: str,dk: Path,build_root: Path):
     release.mkdir(parents=True,exist_ok=True)
     name='ezkernel.bin' if target=='omega' else 'ezkernelnew.bin'
     shutil.copy2(rom,release/name)
-    data={'target':target,'file':name,'bytes':size,'budget_bytes':limit,'headroom_bytes':limit-size,'sha256':hashlib.sha256(rom.read_bytes()).hexdigest(),'ram':ram,'compiler':subprocess.check_output([gcc,'--version'],text=True).splitlines()[0]}
+    data={'target':target,'file':name,'bytes':size,'budget_bytes':limit,'headroom_bytes':limit-size,'sha256':hashlib.sha256(rom.read_bytes()).hexdigest(),'ram':ram,'addon_patch_bytes':addon_bytes,'compiler':subprocess.check_output([gcc,'--version'],text=True).splitlines()[0]}
     (release/'build.json').write_text(json.dumps(data,indent=2)+'\n', encoding='utf-8')
     print(json.dumps(data,indent=2))
     print(report)

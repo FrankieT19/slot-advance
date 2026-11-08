@@ -6,6 +6,7 @@
 #include "slot_fast_cache.h"
 #include "slot_timing.h"
 #include "slot_transition.h"
+#include "slot_return_io.h"
 #define SLOT_DIR "/SYSTEM/SLOT"
 #define SLOT_CONFIG SLOT_DIR "/SETTINGS.TXT"
 #define SLOT_CONFIG_TMP SLOT_DIR "/SETTINGS.TMP"
@@ -378,6 +379,10 @@ static void Slot_Play(void)
     if(!slot_count) return;
     slot_config_dirty=1;
     if(!Slot_SaveConfig()) { Slot_Message("Settings could not be saved","B: return"); wait_btn(); }
+    Slot_ArmReturn(pFilename_buffer[slot_index[slot_platform]].filename,slot_platform==0);
+#ifdef __arm__
+    Slot_SetAddonTheme(slot_theme);
+#endif
     Slot_ClearNav();Slot_FillCache();
     if(slot_animations) {
         slot_partial_motion=1;start=slot_vblanks;
@@ -395,6 +400,7 @@ static void Slot_Play(void)
     gl_boot_mode_pref=slot_addon?2:1;
     slot_loading_dark=slot_theme!=2;
     SD_list_MENU(slot_index[slot_platform],0,0xBB);
+    Slot_ArmReturn("",0);
     Launcher_EndLaunchIndicator();
     slot_frame=(uint16_t*)pReadCache;
     SetMode(MODE_3|BG2_ENABLE); Slot_Scan();
@@ -404,6 +410,10 @@ static void Slot_CartBack(void)
 {
     unsigned dirty=1;
     if(slot_platform!=0 || !slot_count) return;
+    Slot_ArmReturn(pFilename_buffer[slot_index[slot_platform]].filename,slot_platform==0);
+#ifdef __arm__
+    Slot_SetAddonTheme(slot_theme);
+#endif
     while(1) {
         unsigned down;
         if(dirty) { Slot_Board(slot_board,71,slot_title,slot_addon,slot_platform); Slot_Present(); dirty=0; }
@@ -480,18 +490,63 @@ static unsigned Slot_RefreshClock(void)
     if(!strcmp(next,slot_time))return 0;
     memcpy(slot_time,next,6);return 1;
 }
+static void Slot_EjectReplay(void)
+{
+    unsigned start,elapsed,frame;
+    Slot_ClearNav();slot_partial_motion=0;
+    Slot_DrawShelf(slot_index[slot_platform],0,256,0);Slot_Present();
+#ifdef __arm__
+    Slot_FadeIn();
+#endif
+    if(slot_animations) {
+        start=slot_vblanks;
+        while(slot_vblanks-start<SLOT_EJECT_HOLD_FRAMES){VBlankIntrWait();UIAudio_Update();}
+        UIAudio_PlaySfx(UI_SFX_EJECT);start=slot_vblanks;
+        do {
+            elapsed=slot_vblanks-start+1;
+            frame=elapsed>=SLOT_EJECT_FRAMES?0:(SLOT_EJECT_FRAMES-elapsed)*256/SLOT_EJECT_FRAMES;
+            Slot_DrawShelf(slot_index[slot_platform],0,frame,0);Slot_Present();UIAudio_Update();
+        }while(frame);
+    } else {UIAudio_PlaySfx(UI_SFX_EJECT);Slot_DrawShelf(slot_index[slot_platform],0,0,0);Slot_Present();}
+    slot_return_pending=0;
+    /* The Select that requested the reboot must not enter another UI action. */
+    scanKeys();
+}
 static void Slot_Run(void)
 {
-    unsigned redraw=1,idle=0,nav_index,steps;int pose=0,last_pose=0,last_base=0;
+    unsigned redraw=1,idle=0,nav_index,steps,ejected=0;int pose=0,last_pose=0,last_base=0;
     slot_frame=(uint16_t*)pReadCache;slot_platform=0;
+#ifdef __arm__
+    /* Offline-test diagnostic only, after the backend has recovered saves.
+       A loader that clears EWRAM must fail closed rather than eject on boot. */
+    if(slot_return_request_seen) {
+        const char *message=slot_return_save_failed?"Eject skipped: game save write-back is still pending.\n":
+            slot_return_pending?"ROM return accepted: warm cookie matched.\n":
+            "Eject skipped: SRAM request found, but the powered-session cookie was missing or changed.\n";
+        UINT written;
+        f_mkdir("/SYSTEM");f_mkdir(SLOT_DIR);
+        if(f_open(&gfile,SLOT_DIR "/RETURN.TXT",FA_CREATE_ALWAYS|FA_WRITE)==FR_OK){
+            f_write(&gfile,message,strlen(message),&written);f_close(&gfile);
+        }
+    }
+#endif
     gl_show_Thumbnail=LAUNCHER_VIEW_LIST;launcher_sounds_enabled=1;gl_reset_on=1;
-    Slot_ReadUsername();Slot_ReadConfig();Slot_RefreshClock();Slot_Scan();setRepeat(10,4);
+    Slot_ReadUsername();Slot_ReadConfig();Slot_RefreshClock();
+    if(slot_return_pending)slot_platform=0;
+    Slot_Scan();setRepeat(10,4);
+    if(slot_return_pending) {
+        unsigned i;
+        for(i=0;i<slot_count;i++)if(!strcasecmp(pFilename_buffer[i].filename,slot_return_filename))break;
+        if(i<slot_count){slot_index[slot_platform]=i;Slot_ReadTitle();Slot_FillCache();}
+        else slot_return_pending=0;
+    }
     if(!slot_count)Slot_ChangeShelf(1);
     if(!slot_count)Slot_Empty(slot_library[slot_platform],slot_scan_error?"SD read error":0);
+    else if(slot_return_pending){Slot_EjectReplay();ejected=1;}
     else Slot_DrawShelf(slot_index[slot_platform],0,0,0);
     Slot_Present();
 #ifdef __arm__
-    Slot_FadeIn();
+    if(!ejected)Slot_FadeIn();
 #endif
     redraw=0;last_base=(int)slot_index[slot_platform];
     Slot_ResumeNav(slot_count,slot_index[slot_platform],slot_wrap,slot_animations);

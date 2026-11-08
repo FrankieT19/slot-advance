@@ -1,13 +1,20 @@
 {
-  "source_rate": 48000,
-  "source_format": "signed 16-bit LE mono",
-  "source_sha256": "d418439f5624860cc7dd3393f736551113e16ae674103b7c4b43a71215a15db1",
   "output_rate": 22050,
-  "output_format": "signed 8-bit mono, 16-byte zero-padded DMA buffer",
-  "samples": 5292,
-  "seconds": 0.24,
+  "output_format": "signed 8-bit mono, 16-byte padded",
   "smooth_limiter_drive": 2.0,
-  "output_peak": 127,
-  "edge_fade_ms": 1,
-  "eject_used": false
+  "eject_used": true,
+  "clips": {
+    "insert": {
+      "source_rate": 48000,
+      "source_sha256": "d418439f5624860cc7dd3393f736551113e16ae674103b7c4b43a71215a15db1",
+      "samples": 5292,
+      "seconds": 0.24
+    },
+    "eject": {
+      "source_rate": 48000,
+      "source_sha256": "932dd4df78c8ec8aa3ac303fe8d360e3aad7fadbad81fa9deed46bf45dfa5b7d",
+      "samples": 6946,
+      "seconds": 0.31501133786848073
+    }
+  }
 }

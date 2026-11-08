@@ -13786,6 +13786,7 @@ int main(void) {
     gl_currentpage=0x8002;
     SetMode(MODE_3|BG2_ENABLE);
     SD_Disable(); Set_RTC_status(1);
+    Slot_ReadReturn();
     { u16 version=Read_FPGA_ver(); if(version<9 || version==99) { REG_BLDCNT=0; REG_BLDY=0; Check_FW_update(version,9); REG_BLDCNT=0x00ff; REG_BLDY=16; } }
     CheckLanguage(); CheckSwitch(); UIAudio_Init();
     if(f_mount(&EZcardFs,"",1)!=FR_OK) {
@@ -13794,14 +13795,15 @@ int main(void) {
         Slot_Message("SD card could not be mounted","Power off and check the card");
         while(1) VBlankIntrWait();
     }
-    launcher_splash_fade_pending=0; Slot_BootSplash();
+    launcher_splash_fade_pending=0; if(!slot_return_pending)Slot_BootSplash();
     /* Required before browsing: finish the previous game's pending save backup. */
     Check_save_flag();
     folder_select=1; folder_total=0;
     f_chdir("/"); strcpy(currentpath,"/");
     Read_NOR_info(); gl_norOffset=0;
     game_total_NOR=GetFileListFromNor();
-    Slot_FadeBlack();
+    if(!slot_return_pending)Slot_FadeBlack();
+    else {REG_BLDCNT=0x00ff;REG_BLDY=16;}
     SetMode(MODE_3|BG2_ENABLE);
     Slot_Run();
     return 0;

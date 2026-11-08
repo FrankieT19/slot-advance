@@ -32,5 +32,7 @@ static void Slot_VBlank(void) {
 }
 static unsigned Slot_Ease(unsigned elapsed,unsigned duration)
 {if(elapsed>=duration)return 256;return Slot_Smooth(elapsed*256/duration);}
-#define SLOT_INSERT_FRAMES 24
+#define SLOT_INSERT_FRAMES 27
+#define SLOT_EJECT_FRAMES SLOT_INSERT_FRAMES
+#define SLOT_EJECT_HOLD_FRAMES 21
 #endif

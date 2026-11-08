@@ -3,7 +3,7 @@
   "packages": [
     {
       "model": "omega",
-      "file": "slot-advance-v1.0-omega.zip",
+      "file": "slot-advance-v1.1-omega.zip",
       "converter_included": true,
       "empty_username_included": true,
       "files": 4,
@@ -11,7 +11,7 @@
     },
     {
       "model": "omega-de",
-      "file": "slot-advance-v1.0-omega-de.zip",
+      "file": "slot-advance-v1.1-omega-de.zip",
       "converter_included": true,
       "empty_username_included": true,
       "files": 4,

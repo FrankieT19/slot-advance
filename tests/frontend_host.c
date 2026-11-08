@@ -47,6 +47,7 @@
 #define UI_SFX_MOVE 1
 #define UI_SFX_TAB 2
 #define UI_SFX_LAUNCH 3
+#define UI_SFX_EJECT 4
 #define strcasecmp _stricmp
 #define dmaCopy(src,dst,n) memcpy((dst),(src),(n))
 typedef unsigned short u16;typedef unsigned u32;typedef unsigned UINT;typedef int FRESULT;
@@ -127,12 +128,22 @@ static int f_readdir(DIR *d,FILINFO *info)
 static int f_closedir(DIR *d) { if(d->handle!=INVALID_HANDLE_VALUE)FindClose(d->handle);return FR_OK; }
 static int f_chdir(const char *p) { snprintf(mock_cwd,sizeof(mock_cwd),"%s",p);return FR_OK; }
 static volatile unsigned slot_vblanks;
-static void VBlankIntrWait(void) {slot_vblanks++;}
+static unsigned capture_motion,capture_count,capture_hashes[128],eject_sounds;
+static unsigned centre_hash(void)
+{
+    unsigned x,y,h=2166136261u;uint16_t *pixels=(uint16_t*)pReadCache;
+    for(y=0;y<143;y++)for(x=80;x<160;x++)h=(h^pixels[y*240+x])*16777619u;
+    return h;
+}
+static void VBlankIntrWait(void) {
+    slot_vblanks++;
+    if(capture_motion && capture_count<128)capture_hashes[capture_count++]=centre_hash();
+}
 static void SetPSRampage(unsigned page) { (void)page; }
 static void SetMode(unsigned mode) { (void)mode; }
 static void setRepeat(unsigned a,unsigned b) { (void)a;(void)b; }
 static void UIAudio_Update(void) {}
-static void UIAudio_PlaySfx(unsigned id) { (void)id; }
+static void UIAudio_PlaySfx(unsigned id) { if(id==UI_SFX_EJECT)eject_sounds++; }
 static void UIAudio_PlayBack(void) {}
 static void scanKeys(void) { mock_key=mock_keys[mock_event<127?mock_event++:127]; }
 static unsigned keysHeld(void){return mock_key;}
@@ -411,6 +422,21 @@ static void streaming_tests(void)
     free(reference);free(frame);
 }
 __declspec(dllexport) unsigned Slot_HostStreamMisses(void){return stream_steady_misses;}
+static void eject_tests(void)
+{
+    unsigned insert[64],i,rest;
+    slot_platform=0;slot_index[0]=0;slot_animations=1;slot_partial_motion=0;Slot_Scan();Slot_DrawShelf(0,0,0,0);rest=centre_hash();
+    capture_count=0;capture_motion=1;Slot_Play();capture_motion=0;
+    CHECK(capture_count==SLOT_INSERT_FRAMES+1); /* Mock launch returns, then scans once. */
+    memcpy(insert,capture_hashes,sizeof(unsigned)*SLOT_INSERT_FRAMES);
+    capture_count=0;capture_motion=1;slot_return_pending=1;eject_sounds=0;Slot_EjectReplay();capture_motion=0;
+    CHECK(capture_count==1+SLOT_EJECT_HOLD_FRAMES+SLOT_EJECT_FRAMES);
+    for(i=0;i<=SLOT_EJECT_HOLD_FRAMES;i++)CHECK(capture_hashes[i]==insert[SLOT_INSERT_FRAMES-1]);
+    for(i=1;i<SLOT_EJECT_FRAMES;i++)CHECK(capture_hashes[SLOT_EJECT_HOLD_FRAMES+i]==insert[SLOT_INSERT_FRAMES-1-i]);
+    CHECK(capture_hashes[capture_count-1]==rest);CHECK(!slot_return_pending);CHECK(eject_sounds==1);
+    slot_animations=0;slot_return_pending=1;eject_sounds=0;Slot_EjectReplay();
+    CHECK(centre_hash()==rest && !slot_return_pending && eject_sounds==1);
+}
 __declspec(dllexport) unsigned Slot_HostStreamFrames(void){return stream_steady_frames;}
 __declspec(dllexport) unsigned Slot_HostCheckCount(void){return checks;}
 __declspec(dllexport) int main(int argc,char **argv)
@@ -419,7 +445,7 @@ __declspec(dllexport) int main(int argc,char **argv)
     memory=VirtualAlloc((void*)SLOT_CACHE_BASE,0x30000,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);
     if(memory!=(void*)SLOT_CACHE_BASE){printf("Cannot map mock PSRAM\n");return 2;}
     slot_frame=(uint16_t*)pReadCache;f_mkdir("/SYSTEM");f_mkdir(SLOT_DIR);
-    config_tests();image_tests();scan_tests();username_tests();menu_tests();refinement_tests();streaming_tests();
+    config_tests();image_tests();scan_tests();username_tests();menu_tests();refinement_tests();streaming_tests();eject_tests();
     printf("Frontend host integration: %u checks, %u failed\n",checks,failed);
     VirtualFree(memory,0,MEM_RELEASE);return failed?1:0;
 }

@@ -44,7 +44,8 @@ typedef enum
     UI_SFX_MOVE,
     UI_SFX_STARTUP,
     UI_SFX_TAB,
-    UI_SFX_LAUNCH
+    UI_SFX_LAUNCH,
+    UI_SFX_EJECT
 } UI_SFX_ID;
 
 static u16 UIAudio_TimerReload(u32 sample_rate)
@@ -268,6 +269,7 @@ static void UIAudio_PlayRaw(const signed char *data, u32 len, u32 sample_rate, u
 static void UIAudio_PlaySfx(UI_SFX_ID id)
 {
     if(!launcher_sounds_enabled)return;
-    /* Slot has no navigation/menu beeps, and a reset does not eject/resume. */
+    /* The original Slot insert/eject clips; no navigation/menu beeps. */
     if(id==UI_SFX_LAUNCH)UIAudio_PlayRaw(slot_insert_pcm,SLOT_INSERT_SAMPLES,SLOT_SOUND_HZ,0);
+    else if(id==UI_SFX_EJECT)UIAudio_PlayRaw(slot_eject_pcm,SLOT_EJECT_SAMPLES,SLOT_SOUND_HZ,0);
 }

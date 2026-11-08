@@ -7,5 +7,12 @@
   "source_duration_preserved": true,
   "zero_ended_fades": true,
   "embedded_pcm_matches_wave": true,
-  "scope": "Offline waveform level and range; actual speaker loudness depends on hardware. Smooth limiting raises the quieter body while keeping peaks within signed-8 range."
+  "scope": "Offline waveform level and range; actual speaker loudness depends on hardware. Smooth limiting raises the quieter body while keeping peaks within signed-8 range.",
+  "eject": {
+    "samples": 6946,
+    "seconds": 0.31501133786848073,
+    "signed8_peak": 127,
+    "embedded_pcm_matches_wave": true,
+    "zero_ended_fades": true
+  }
 }

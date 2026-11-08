@@ -1,6 +1,6 @@
 {
   "status": "pass",
-  "checks": 2459,
+  "checks": 2513,
   "failed": 0,
   "steady_stream_frames": 750,
   "steady_visible_cache_misses": 0,

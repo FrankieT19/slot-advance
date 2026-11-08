@@ -33,7 +33,8 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--tcc',type=Path,required=True);a=p.parse_args()
     source=(ROOT/'kernels/omega-de/source/ezkernelnew.c').read_bytes().decode('latin1')
     start=source.index('void Check_save_flag(void)\n{');end=source.index('//---------------------------------------------------------------------------------',start)
-    with tempfile.TemporaryDirectory(dir=ROOT.parent.parent/'work') as tmp:
+    (ROOT/'work').mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=ROOT/'work') as tmp:
         folder=Path(tmp);file=folder/'save.c';file.write_text(STUBS+source[start:end]+TESTS,encoding='utf-8')
         base=a.tcc.resolve();tcc=C.CDLL(str(base/'libtcc.dll'));tcc.tcc_new.restype=C.c_void_p
         for name,args in [('tcc_set_lib_path',[C.c_void_p,C.c_char_p]),('tcc_add_include_path',[C.c_void_p,C.c_char_p]),('tcc_add_library_path',[C.c_void_p,C.c_char_p]),('tcc_set_output_type',[C.c_void_p,C.c_int]),('tcc_add_file',[C.c_void_p,C.c_char_p]),('tcc_output_file',[C.c_void_p,C.c_char_p]),('tcc_delete',[C.c_void_p])]:getattr(tcc,name).argtypes=args

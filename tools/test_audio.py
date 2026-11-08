@@ -19,6 +19,13 @@ def main():
     header=(ROOT/'common/slot_sounds.h').read_text()
     samples=[int(v) for v in re.findall(r'-?\d+',header.split('{',1)[1].split('}',1)[0])]
     assert samples[:len(current)]==current and all(v==0 for v in samples[len(current):])
+    eject=decode(str(ROOT/'preview/slot-eject.wav'))
+    assert len(eject)==6946 and eject[0]==eject[-1]==0
+    assert max(map(abs,eject))==127 and min(eject)>=-127
+    embedded=header.split('slot_eject_pcm',1)[1].split('{',1)[1].split('}',1)[0]
+    values=[int(v) for v in re.findall(r'-?\d+',embedded)]
+    assert values[:len(eject)]==eject and all(v==0 for v in values[len(eject):])
     report={'status':'pass','samples':len(current),'seconds':len(current)/22050,'signed8_peak':max(map(abs,current)),'rms_gain_db_vs_0_4':gain,'source_duration_preserved':True,'zero_ended_fades':True,'embedded_pcm_matches_wave':True,'scope':'Offline waveform level and range; actual speaker loudness depends on hardware. Smooth limiting raises the quieter body while keeping peaks within signed-8 range.'}
+    report['eject']={'samples':len(eject),'seconds':len(eject)/22050,'signed8_peak':127,'embedded_pcm_matches_wave':True,'zero_ended_fades':True}
     (ROOT/'validation/audio-validation.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8');print(json.dumps(report,indent=2))
 if __name__=='__main__':main()

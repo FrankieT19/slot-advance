@@ -43,6 +43,8 @@ python tests/test_converter.py
 python tools/test_frontend_host.py --tcc path/to/tcc
 python tools/test_navigation.py --tcc path/to/tcc
 python tools/test_startup_save.py --tcc path/to/tcc
+python tools/test_return_io.py --tcc path/to/tcc
+python tools/test_addon_menu.py --core path/to/mgba_libretro.dll
 ```
 
 The Windows host harness uses TinyCC and a disposable mock SD card. The preview is a normal GBA ROM with fictional labels, built from the shared renderer. Neither substitutes for testing the physical flashcart, its SD bus, save write-back or game compatibility. Exact results and memory sizes are in [validation/REPORT.md](../validation/REPORT.md).
@@ -53,6 +55,6 @@ The Windows host harness uses TinyCC and a disposable mock SD card. The preview 
 
 `tools/package.py` verifies the built kernel and converter hashes, then writes the two minimal installation ZIPs under `dist/`. Each contains `SD_CARD`, `Label Converter.exe` and `README.txt`. Generated demo artwork and emulator captures are local test output and are not committed or packaged.
 
-The release version is `v1.0`, defined in [common/slot_version.h](../common/slot_version.h). Upstream sources are pinned in [UPSTREAM.json](../UPSTREAM.json); backend deltas are in `patches/`.
+The offline test version is `v1.1`, defined in [common/slot_version.h](../common/slot_version.h). Upstream sources are pinned in [UPSTREAM.json](../UPSTREAM.json); backend deltas are in `patches/`.
 
 Use local Git for source commits and pushes, and GitHub CLI (`gh release upload` / `gh release edit`) for releases. Browser-editor uploads are unnecessary.

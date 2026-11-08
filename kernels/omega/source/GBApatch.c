@@ -26,6 +26,7 @@ u32 iTrimSize;
 u32 EA_offset;
 
 u32 w_reset_on;
+static unsigned w_slot_theme;
 u32 w_rts_on;
 u32 w_sleep_on;
 u32 w_cheat_on;
@@ -441,6 +442,8 @@ void Patch_Reset_Sleep(u32 *Data)
 	Write(iTrimSize, patchbuffer, p_patch_end-p_patch_start);
 }
 //------------------------------------------------------------------
+static unsigned slot_patch_theme;
+void Slot_SetAddonTheme(unsigned theme){slot_patch_theme=theme;}
 void Patch_RTS_Cheat(u32 *Data)
 {
 	Patch_B_address();
@@ -474,6 +477,10 @@ void Patch_RTS_Cheat(u32 *Data)
 
   *(vu32*)(patchbuffer+RTS_Reset_key_offset) = 0x3F3; /* Start + Select. */
     *(vu32*)(patchbuffer+((u8*)Slot_RTS_HoldEnabled-p_patch_start)) = gl_reset_on;
+    *(vu32*)(patchbuffer+((u8*)Slot_RTS_Background-p_patch_start)) = slot_patch_theme==1?0:slot_patch_theme==2?0x7bff:0x0c84;
+    *(vu32*)(patchbuffer+((u8*)Slot_RTS_Panel-p_patch_start)) = slot_patch_theme==1?0x1cc6:0x7bde;
+    *(vu32*)(patchbuffer+((u8*)Slot_RTS_Ink-p_patch_start)) = slot_patch_theme==1?0x7fff:0x10a5;
+
   if(gl_sleep_on !=1){
     *(vu32*)(patchbuffer+RTS_Sleep_key_offset) = 0;
   }
@@ -711,6 +718,7 @@ void GBA_patch_init(void)
 	EA_offset = 0;
 
 	w_reset_on = 0;
+    w_slot_theme = 0xffffffffu;
 	w_rts_on = 0;
 	w_sleep_on = 0;
 	w_cheat_on = 0;
@@ -736,6 +744,7 @@ void GBA_patch_init_buffer(u32* buffer)
 	w_rts_on = buffer[start+9];
 	w_sleep_on = buffer[start+10];
 	w_cheat_on = buffer[start+11];
+    w_slot_theme = buffer[start+12];
 }
 //------------------------------------------------------------------
 u32 Check_pat(TCHAR* gamefilename)
@@ -747,7 +756,7 @@ u32 Check_pat(TCHAR* gamefilename)
 
 	TCHAR patnamebuf[100];
 	make_pat_name(patnamebuf,gamefilename);
-	res=f_chdir("/SYSTEM/PATCH/SLOT02");
+	res=f_chdir("/SYSTEM/PATCH/SLOT11");
 	if(res == FR_OK)
 	{
 		res = f_open(&gfile,patnamebuf, FA_READ);
@@ -775,7 +784,7 @@ u32 Check_pat(TCHAR* gamefilename)
 		//read patch information
 		GBA_patch_init_buffer((u32*)pReadCache);
 
-		if( (w_reset_on !=gl_reset_on)  || (w_rts_on !=gl_rts_on)  || (w_sleep_on !=gl_sleep_on) || (w_cheat_on !=gl_cheat_on))
+		if( (w_slot_theme !=slot_patch_theme) || (w_reset_on !=gl_reset_on)  || (w_rts_on !=gl_rts_on)  || (w_sleep_on !=gl_sleep_on) || (w_cheat_on !=gl_cheat_on))
 		{
 			GBA_patch_init();
 			find_the_patfile = 0;
@@ -795,8 +804,8 @@ void Make_pat_file(TCHAR* gamefilename)
 	u32 w_buffer[16];
 
 	res = f_mkdir("/SYSTEM/PATCH");
-    f_mkdir("/SYSTEM/PATCH/SLOT02");
-	res=f_chdir("/SYSTEM/PATCH/SLOT02");
+    f_mkdir("/SYSTEM/PATCH/SLOT11");
+	res=f_chdir("/SYSTEM/PATCH/SLOT11");
 
 	memset(w_buffer, 0x00, sizeof(w_buffer));
 
@@ -822,6 +831,7 @@ void Make_pat_file(TCHAR* gamefilename)
 			w_buffer[9] = gl_rts_on;
 			w_buffer[10] = gl_sleep_on;
 			w_buffer[11] = gl_cheat_on;
+            w_buffer[12] = slot_patch_theme;
 
 			res=f_write(&gfile, (void*)w_buffer, sizeof(w_buffer), (UINT*)&written);
 			f_close(&gfile);

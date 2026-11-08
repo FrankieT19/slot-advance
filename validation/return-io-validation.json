@@ -1,0 +1,6 @@
+{
+  "status": "pass",
+  "checks": 63,
+  "failed": 0,
+  "scope": "Actual Slot_ReadReturn/Slot_ArmReturn with SRAM and volatile-cookie mocks: one-shot consumption, cold start with retained SRAM, torn/bad cookies and records, safe basename, disabled arming and banking/buffer guards."
+}

@@ -1,3 +1,10 @@
+# v1.1 — offline test
+
+- Add warm-return cartridge ejection using slot.'s original sound and reversed insertion path.
+- Keep hard restarts on the normal boot path using a volatile return cookie.
+- Restyle the GBA Addon menu with native DS Style text and settings-style selection.
+- Separate the addon patch cache and track its theme so existing patched games receive the new menu.
+
 # v1.0
 
 First public release of **slot. advance**: a port of slot.'s cartridge frontend for EZ-FLASH Omega and the original Omega Definitive Edition, built on DS Style.

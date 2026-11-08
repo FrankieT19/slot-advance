@@ -3,7 +3,7 @@
 This combined derivative uses GPL-3.0-or-later to accommodate the Slot artwork and adapted rendering model. Original files retain their existing notices and licences; this does not replace the Apache-2.0 notices in the DS Style/EZ-FLASH sources.
 
 - DS Style: FrankieT19. Original cartridge backends: EZ-FLASH, with SimpleLight work by Sterophonick and the contributors credited in `kernels/*/UPSTREAM_README.md`.
-- Slot: Brandon Kowalski and contributors, GPL-3.0-or-later. Cartridge artwork: Markus (MarkusMaribu). Slot’s original boot wordmark and insertion PCM are included; the insertion clip is resampled by `tools/convert_sounds.py`. No eject clip is played. Copied visual assets live in `assets/slot/`; reduced assets are generated into `common/slot_assets.h`.
+- Slot: Brandon Kowalski and contributors, GPL-3.0-or-later. Cartridge artwork: Markus (MarkusMaribu). Slot’s original boot wordmark and insertion PCM are included; the insertion clip is resampled by `tools/convert_sounds.py`. The original eject clip is also resampled for the v1.1 return animation. Copied visual assets live in `assets/slot/`; reduced assets are generated into `common/slot_assets.h`.
 - The offline converter's shell palette, header exceptions, overlay model and format interpretation are adapted from Slot's `cart.rs`, `shell.rs`, `bitmaps.rs` and `cart_shell.rs`. Slot copyright and GPL obligations apply to that adaptation.
 - Label font: licence in `assets/slot/label.ttf.OFL.txt`.
 - DejaVu font: licence in `assets/slot/DejaVuSansMono.ttf.LICENSE.txt`.

@@ -1,11 +1,12 @@
 """Build the two minimal installation ZIPs from verified binaries."""
 from pathlib import Path
-import hashlib,json,zipfile
+import hashlib,json,zipfile,re,argparse
 ROOT=Path(__file__).resolve().parents[1]
 DIST=ROOT/'dist'
+VERSION=re.search(r'SLOT_DISPLAY_VERSION \"([^\"]+)\"',(ROOT/'common/slot_version.h').read_text()).group(1)
 
 def guide(model):
-    return f"""slot. advance v1.0 - {model}
+    return f"""slot. advance {VERSION} - {model}
 
 INSTALL
 1. Back up your SD card and saves.
@@ -31,7 +32,11 @@ Source, credits and licences: https://github.com/FrankieT19/slot-advance
 """
 
 def main():
-    DIST.mkdir(exist_ok=True)
+    global DIST
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output-dir',type=Path,default=DIST)
+    DIST=parser.parse_args().output_dir.resolve()
+    DIST.mkdir(parents=True,exist_ok=True)
     builds=json.loads((ROOT/'build-report.json').read_text(encoding='utf-8'))
     app=json.loads((ROOT/'app/build.json').read_text(encoding='utf-8'))
     converter=(ROOT/'app'/app['file']).read_bytes()
@@ -42,9 +47,20 @@ def main():
         assert len(kernel)<2*1024*1024
         assert hashlib.sha256(kernel).hexdigest()==build['sha256']
         model='Original EZ-FLASH Omega' if build['target']=='omega' else 'Original Omega Definitive Edition (Rev A / Rev B)'
-        archive=DIST/('slot-advance-v1.0-'+build['target']+'.zip')
+        archive=DIST/('slot-advance-'+VERSION+'-'+build['target']+'.zip')
         with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:
-            z.writestr('README.txt',guide(model))
+            readme=guide(model)
+            if VERSION=='v1.1':
+                readme+='''
+OFFLINE TEST
+Launch a GBA ROM from SD with Addons and Select hold enabled.
+Hold Select for 3 seconds: the same cartridge should eject with sound.
+Power off and on: normal startup, with no eject animation.
+Start+Select opens the restyled menu. Check Resume and save/load states
+(enable Save states first), then confirm your normal game save survives reset.
+If returning does not eject, check SYSTEM/SLOT/RETURN.TXT for the test status.
+'''
+            z.writestr('README.txt',readme)
             z.writestr('Label Converter.exe',converter)
             z.writestr('SD_CARD/'+build['file'],kernel)
             z.writestr('SD_CARD/USERNAME.TXT',b'')
