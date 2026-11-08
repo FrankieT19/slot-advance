@@ -2,13 +2,14 @@
 #include "includes.h"
 #include "slot_return.h"
 #include "slot_emulator_controls.h"
+#include "slot_emulator_fade.h"
 extern int main_ui_selection;
 EWRAM_BSS volatile unsigned Slot_JagoombaVBlanks;
 static EWRAM_BSS SlotEmulatorControls slot_keys;
 static EWRAM_BSS unsigned slot_hold_enabled,slot_exit_requested;
 #ifdef SLOT_EMULATOR_TEST
 EWRAM_BSS SlotReturnRecord Slot_JagoombaTestRecord;
-EWRAM_BSS unsigned Slot_JagoombaTestPage,Slot_JagoombaTestExit,Slot_JagoombaTestMenus;
+EWRAM_BSS volatile unsigned Slot_JagoombaTestPage,Slot_JagoombaTestExit,Slot_JagoombaTestMenus;
 #endif
 static __attribute__((section(".ewram"),long_call,noinline)) void slot_sram_page(unsigned page)
 {
@@ -63,6 +64,10 @@ void Slot_JagoombaResume(void)
 {
     memset(&slot_keys,0,sizeof(slot_keys));slot_keys.blocked=!!((~REG_P1)&12);
 }
+void Slot_JagoombaFadeBlack(void)
+{
+    Slot_EmulatorFadeBlack();
+}
 void Slot_JagoombaMarkReturn(void)
 {
     uint32_t magic=0,checksum=0,platform=0;unsigned i;
@@ -88,6 +93,7 @@ void Slot_JagoombaMarkReturn(void)
 void Slot_JagoombaTestReset(void)
 {
     Slot_JagoombaMarkReturn();Slot_JagoombaTestExit++;
-    for(;;)waitframe();
+    /* BIOS IntrWait would re-enable game IRQs and repaint the menu. */
+    for(;;)Slot_EmulatorWaitBlank();
 }
 #endif

@@ -74,8 +74,11 @@ For full-emulator checks with self-authored GB/GBC save-test ROMs:
 ```sh
 python tools/build_emulator.py --source path/to/jagoombacolor --target omega-de --test --build-root work/emulator-test
 python tools/test_emulator.py --core path/to/mgba_libretro.dll
+python tools/test_emulator_reset.py --core path/to/mgba_libretro.dll
 ```
 
 Only cartridge SRAM bank access and the final reboot are substituted in that fixture. Physical-cartridge save write-back, return and cold-boot behaviour still require hardware testing.
+
+The reset test separately executes the production reset assembly, BIOS calls and black-entry CRT, checking the captured fade-out/black/fade-in frames. GB/GBC border drawing is suppressed while SGB game palettes remain available; the obsolete border toggle is removed from the emulator menu.
 
 Use local Git for source commits and pushes, and GitHub CLI (`gh release upload` / `gh release edit`) for releases. Browser-editor uploads are unnecessary.

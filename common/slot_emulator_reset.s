@@ -58,9 +58,31 @@ Slot_EmulatorResetCode:
     ldr r1,Slot_EmulatorResetFlag
     mov r0,#0
     strb r0,[r1]
-    mov r0,#0xfc
+    /* BIOS RAM reset forces a white display. Reset only registers, during
+       VBlank, then restore mode 3 black before the next visible scanline.
+       The kernel paints its complete framebuffer; bulk VRAM/OAM/palette
+       clears are unnecessary here. EWRAM retains the one-shot cookie. */
+    ldr r2,Slot_EmulatorResetIO
+    add r2,#6
+2:  ldrh r0,[r2]
+    cmp r0,#160
+    bhs 2b
+3:  ldrh r0,[r2]
+    cmp r0,#160
+    blo 3b
+    mov r0,#0xe0
     swi 0x01
+    ldr r1,Slot_EmulatorResetIO
+    ldr r0,Slot_EmulatorResetMode
+    strh r0,[r1]
+    add r1,#0x50
+    mov r0,#0xff
+    strh r0,[r1]
+    mov r0,#16
+    strh r0,[r1,#4]
     swi 0x00
 .align 2
 Slot_EmulatorResetFlag: .word 0x03007ffa
+Slot_EmulatorResetIO: .word 0x04000000
+Slot_EmulatorResetMode: .word 0x0403
 Slot_EmulatorResetEnd:

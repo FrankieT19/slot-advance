@@ -11,6 +11,7 @@ def gb_rom(color):
     data=bytearray(32768);data[0x100:0x104]=bytes.fromhex('00c35001')
     data[0x104:0x134]=bytes.fromhex('CE ED 66 66 CC 0D 00 0B 03 73 00 83 00 0C 00 0D 00 08 11 1F 88 89 00 0E DC CC 6E E6 DD DD D9 99 BB BB 67 63 6E 0E EC CC DD DC 99 9F BB B9 33 3E')
     data[0x134:0x13f]=b'SLOT SAVE 1';data[0x143]=0x80 if color else 0
+    data[0x146]=3;data[0x14b]=0x33  # Both fixtures advertise SGB support.
     data[0x147]=3;data[0x148]=0;data[0x149]=2
     # Enable MBC1 RAM; increment a persisted byte once per game boot.
     # Mirror it to C000 so the host can inspect it without bypassing the GB CPU.
@@ -20,6 +21,13 @@ def gb_rom(color):
     jump=len(code);code+=b'\xc3\0\0'
     already=len(code);code+=bytes.fromhex('fa01a03c')
     store=len(code);code+=bytes.fromhex('ea01a0ea00c0')
+    # Send a real SGB PCT_TRN packet. SGB-only GB games must not draw a border
+    # either, and dual SGB/CGB games must skip the automatic SGB dry-run.
+    def pulse(value):code.extend(bytes([0x3e,value,0xe0,0]))
+    pulse(0);pulse(0x30)
+    for value in bytes([0xa1])+bytes(15):
+        for bit in range(8):pulse(0x10 if value&(1<<bit) else 0x20);pulse(0x30)
+    pulse(0x20);pulse(0x30)
     loop=0x150+len(code);code+=b'\x00\xc3'+struct.pack('<H',loop)
     code[branch+1]=already-branch-2;struct.pack_into('<H',code,jump+1,0x150+store)
     data[0x150:0x150+len(code)]=code
@@ -56,6 +64,16 @@ def main():
             C.memmove(pointer(addresses['Slot_JagoombaTestRecord']),record,len(record))
             return h
         check(counter()==1,'GB ROM runs and initialises battery RAM')
+        def byte(name):return C.c_ubyte.from_address(pointer(addresses[name])).value
+        check(byte('auto_border')==0,'SGB automatic border loading defaults off')
+        check(not(byte('ui_border_visible')&2),'SGB border packet does not display a border')
+        if not color:
+            packet=addresses['GLOBAL_PTR_BASE']+addresses['borderpartsadded']
+            check(C.c_ubyte.from_address(pointer(packet)).value&4,'GB CPU sent a real SGB border packet')
+        # Simulate border bits restored by an older emulator save state.
+        set_value('ui_border_request',value('ui_border_request')|2);e.run(8)
+        check(not(value('ui_border_screen')&2),'old border requests are masked at display')
+        check(not(value('ui_border_buffer')&2),'old border requests are masked in scanline buffers')
         canaries=[C.c_uint.from_address(pointer(addresses[n])).value for n in ['CANARY1','CANARY2']]
         press([10,11]);check(value('Slot_JagoombaTestMenus')==0,'L+R no longer opens menu')
         press([2],20);check(not value('Slot_JagoombaTestExit'),'short Select does not exit')
@@ -66,6 +84,7 @@ def main():
         arm();e.keys={2};e.run(170);check(not value('Slot_JagoombaTestExit'),'hold does not fire early')
         e.run(40);e.keys=set();e.run(40)
         check(value('Slot_JagoombaTestExit')==1,'Select hold exits through menu/save path')
+        check(max(e.frame.tobytes())==0,'Select-hold exit fades every display area to black')
         check(value('Slot_JagoombaTestPage')==0,'return restores save bank zero')
         record=C.string_at(pointer(addresses['Slot_JagoombaTestRecord']),128)
         check(struct.unpack_from('<2I',record,8)==(0x5443454a,0xabbcbab5),'one-shot return request written')
@@ -76,18 +95,20 @@ def main():
         e.lib.retro_reset();e.run(180)
         check(counter()==2,'GB battery save survives full emulator restart')
         check(not value('Slot_JagoombaTestExit'),'cold boot does not request another exit')
+        check(byte('auto_border')==0,'borders remain disabled after restart without saving settings')
         # Disabled hold still permits the menu and manual Exit.
         set_value('slot_hold_enabled',0);press([2],220)
         check(not value('Slot_JagoombaTestExit'),'Select hold setting respected')
         press([2,3]);check(value('Slot_JagoombaTestMenus')==1,'menu works with hold disabled')
         arm();press([4]);press([8],after=60)
         check(value('Slot_JagoombaTestExit')==1,'manual menu Exit uses return hook')
+        check(max(e.frame.tobytes())==0,'manual Exit also fades to black')
         e.lib.retro_reset();e.run(180)
         check(counter()==3,'manual menu Exit also preserves the battery save')
         press([2,3]);press([4]);press([4]);press([8],after=100)
         check(not value('Slot_JagoombaTestExit'),'Restart does not return or eject')
         check(counter()==4,'Restart restarts the GB ROM')
-        results.append({'system':'GBC' if color else 'GB','save_roundtrip':True,'hold_exit':True,'menu_exit':True,'cold_boot':True,'restart_stays_in_emulator':True})
+        results.append({'system':'GBC' if color else 'GB','save_roundtrip':True,'hold_exit':True,'menu_exit':True,'cold_boot':True,'restart_stays_in_emulator':True,'sgb_borders_disabled':True,'black_exit_fade':True})
         e.close()
     report={'status':'pass','target':a.target,'checks':total,'results':results,'scope':'Full modified emulator with homebrew GB/GBC ROMs: actual CPU, VBlank clock, menu and battery SRAM handling. Cartridge SRAM banking and the final kernel/FPGA reboot use test shims and still require physical testing.'}
     (ROOT/('validation/emulator-'+a.target+'-validation.json')).write_text(json.dumps(report,indent=2)+'\n')

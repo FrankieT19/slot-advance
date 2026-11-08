@@ -5,11 +5,11 @@ section                size        addr
 .plt                      0   134218268
 .text                100344   134218272
 .fini                    12   134318616
-.rodata             1625248   134318632
-.ctors                    0   135943880
-.dtors                    0   135943880
-.eh_frame                 4   135943880
-.gcc_except_table         0   135943884
+.rodata             1625376   134318632
+.ctors                    0   135944008
+.dtors                    0   135944008
+.eh_frame                 4   135944008
+.gcc_except_table         0   135944012
 .iwram                18352    50331648
 .bss                   2300    50350000
 .data                  7500    50352300
@@ -39,6 +39,6 @@ section                size        addr
 .debug_loclists       92288           0
 .debug_rnglists        7550           0
 .debug_line_str         716           0
-Total               2541241
+Total               2541369
 
 

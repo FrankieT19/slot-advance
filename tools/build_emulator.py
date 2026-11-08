@@ -19,9 +19,20 @@ void Slot_JagoombaInit(void);
 unsigned Slot_JagoombaInput(unsigned held);
 unsigned Slot_JagoombaTakeExit(void);
 void Slot_JagoombaResume(void);
+void Slot_JagoombaFadeBlack(void);
 '''
     edit('includes.h','#include "config.h"','#include "config.h"\n'+declarations)
     edit('main.c','\tewram_canary_2 = 0xDEADBEEF;','\tewram_canary_2 = 0xDEADBEEF;\n\tSlot_JagoombaInit();')
+    # Borders stay disabled without relying on the emulator's unsaved settings.
+    # Keep SGB game palettes; suppress only the border and its auto-loading pass.
+    edit('sgb.s','\t.byte 1\t@autoborder','\t.byte 0\t@autoborder')
+    edit('sgb.s','draw_sgb_border:\n','draw_sgb_border:\n\tbx lr @ slot. advance never displays SGB borders\n')
+    edit('cart.s','\tstrb_ r1,autoborderstate','\tstrb_ r1,autoborderstate\n\tmov r2,#0\n\tstrb_ r2,autoborder')
+    # Rendering also ignores the border bit restored by older emulator states.
+    edit('lcd.s','\tldr_ r0,_ui_border_request','\tldr_ r0,_ui_border_request\n\tbic r0,r0,#2')
+    edit('lcd.s','update_ui_border_masks:\n\tldr_ r1,_ui_border_request','update_ui_border_masks:\n\tldr_ r1,_ui_border_request\n\tbic r1,r1,#2')
+    edit('ui.c','gbtype,changeautoborder,gbatype};','gbtype,gbatype};')
+    edit('ui.c','\tprint_2("Auto SGB border: ",autotxt[auto_border]);\n','')
     edit('timeout.s','''\tadr lr,line0x\t\t@return here after doing L/R + SEL/START
 
 \ttst r1,#0x300\t\t@if L or R was pressed
@@ -59,6 +70,7 @@ void Slot_JagoombaResume(void);
 \tREG_BLDMOD=0;\t\t\t\t\t//no blending
 \tdoReset();''','''\t/* Manual Exit and Select-hold both finish normal GB save handling. */
 \tif(!backup_gb_sram(1))return;
+\tSlot_JagoombaFadeBlack();
 \tdoReset();''')
     edit('io.s','doReset:\n','''doReset:
 #ifdef SLOT_EMULATOR_TEST

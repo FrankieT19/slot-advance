@@ -30,6 +30,7 @@ Left/Right: choose game. L/R: change system. A: play. Start: settings.
 Open Settings > Help for all controls and GBA Addon shortcuts.
 In GBA Addon and GB/GBC games, hold Select for 3 seconds to return and eject.
 Start+Select opens the in-game menu.
+GB/GBC run without SGB borders and fade through black when returning.
 
 Source, credits and licences: https://github.com/FrankieT19/slot-advance
 """

@@ -46,6 +46,8 @@ Open **Settings → Help** for all controls. For **GBA Addon** games, hold **Sel
 
 GB/GBC games use the same **Start + Select** menu shortcut and **Select-hold** return. Choosing **Exit** in the emulator menu also returns and ejects the cartridge.
 
+SGB borders are disabled. GB/GBC exits fade through black back to the carousel.
+
 ## Credits
 
 slot. design by [Brandon Kowalski and contributors](https://github.com/slot-cfw/slot), with cartridge artwork by [Markus](https://github.com/MarkusMaribu). GBA port and DS Style by [frankiet19](https://github.com/FrankieT19), built on the EZ-FLASH kernels and SimpleLight.

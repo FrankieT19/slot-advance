@@ -2,10 +2,10 @@
   {
     "target": "omega",
     "file": "ezkernel.bin",
-    "bytes": 1752116,
+    "bytes": 1752244,
     "budget_bytes": 2097152,
-    "headroom_bytes": 345036,
-    "sha256": "5f4744cbc558214d70d379f644dc0eb0e424baca631f4af8aa046e4f0908cbfd",
+    "headroom_bytes": 344908,
+    "sha256": "f459e59c408b88f36c2b47ee33549c6dba0184d3f01741cc539367e3480e4839",
     "ram": {
       "ewram_static_bytes": 249912,
       "ewram_free_bytes": 12232,
@@ -18,10 +18,10 @@
   {
     "target": "omega-de",
     "file": "ezkernelnew.bin",
-    "bytes": 1752236,
+    "bytes": 1752364,
     "budget_bytes": 2097152,
-    "headroom_bytes": 344916,
-    "sha256": "f7deadeab7a4ff143e22068fbecbd3b493c9c6170529354ac793dc38dce81bcb",
+    "headroom_bytes": 344788,
+    "sha256": "333120379d9e0a8a90f75df472ebc97722d41b183c39d02e9b394fdc3c4643a3",
     "ram": {
       "ewram_static_bytes": 249912,
       "ewram_free_bytes": 12232,
