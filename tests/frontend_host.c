@@ -210,6 +210,9 @@ static void events(unsigned a,unsigned b,unsigned c,unsigned d,unsigned e)
 }
 static void config_tests(void)
 {
+    static const char old_settings[]=
+        "SlotOmega=3\nTheme=1\nAnimations=1\nWrap=1\nSounds=1\nRemember=1\nAddons=1\n"
+        "Reset=1\nStates=1\nSleep=0\nPlatform=2\nGBA=3\nGB=4\nGBC=5\nSkeuomorphic=1\nEnd=1\n";
     char before[512],after[512],crlf[700];unsigned a,b,i,j;
     slot_theme=2;slot_platform=2;slot_index[0]=3;slot_index[1]=4;slot_index[2]=5;slot_addon=1;
     gl_reset_on=1;gl_rts_on=1;slot_config_dirty=1;
@@ -232,6 +235,9 @@ static void config_tests(void)
     CHECK(Slot_SaveConfig());CHECK(!slot_config_dirty);
     put_file(SLOT_CONFIG,"SlotOmega=1\nTheme=4294967296\nEnd=1\n",34);
     slot_theme=2;Slot_ReadConfig();CHECK(slot_theme==1); /* Restore complete backup. */
+    put_file(SLOT_CONFIG,old_settings,sizeof(old_settings)-1);
+    slot_clock_visible=0;slot_theme=2;Slot_ReadConfig();
+    CHECK(slot_clock_visible && slot_theme==1 && slot_platform==2);
     f_unlink(SLOT_CONFIG);f_unlink(SLOT_CONFIG_BAK);
     slot_theme=2;Slot_ReadConfig();CHECK(slot_theme==2);
 }
@@ -277,13 +283,19 @@ static void scan_tests(void)
 }
 static void username_tests(void)
 {
-    uint16_t *before=malloc(240*160*2);unsigned x,y;
+    uint16_t *before=malloc(240*160*2);unsigned x,y,changed=0;
     f_unlink("/USERNAME.TXT");strcpy(slot_username,"old");Slot_ReadUsername();CHECK(!slot_username[0]);
     put_file("/USERNAME.TXT","\xef\xbb\xbf  Frankie \r\nignored",23);Slot_ReadUsername();CHECK(!strcmp(slot_username,"Frankie"));
     put_file("/USERNAME.TXT","abcdefghijklmnop\n",17);Slot_ReadUsername();CHECK(!strcmp(slot_username,"abcdefghij"));
     slot_theme=2;slot_skeuo=1;slot_username[0]=0;Slot_BlankShelf();memcpy(before,slot_frame,240*160*2);
     Slot_ReadUsername();Slot_Clock();
     for(y=0;y<160;y++)for(x=0;x<240;x++)if(before[y*240+x]!=slot_frame[y*240+x])CHECK(x>=6 && x<68 && y>=145 && y<157);
+    memcpy(before,slot_frame,240*160*2);
+    slot_clock_visible=0;Slot_BlankShelf();
+    for(y=0;y<160;y++)for(x=0;x<240;x++)if(before[y*240+x]!=slot_frame[y*240+x]){
+        CHECK(x>=204 && x<234 && y>=145 && y<157);changed++;
+    }
+    CHECK(changed>0);slot_clock_visible=1;
     put_file("/USERNAME.TXT","J\xc3\xb6rg",5);Slot_ReadUsername();CHECK(!strcmp(slot_username,"J?rg"));
     put_file("/USERNAME.TXT","\nSECOND",7);Slot_ReadUsername();CHECK(!slot_username[0]);
     put_file("/USERNAME.TXT","\xff\xfeN\0",4);Slot_ReadUsername();CHECK(!slot_username[0]);
@@ -296,6 +308,9 @@ static void menu_tests(void)
     events(KEY_DOWN,KEY_A,KEY_B,0,0);Slot_SettingsMenu();
     CHECK(slot_skeuo==0);CHECK(mock_event==3);
     events(KEY_A,KEY_B,0,0,0);Slot_SettingsMenu();CHECK(slot_theme==1);
+    events(KEY_UP,KEY_UP,KEY_UP,KEY_A,KEY_B);Slot_SettingsMenu();CHECK(!slot_clock_visible);
+    slot_clock_visible=1;Slot_ReadConfig();CHECK(!slot_clock_visible);
+    events(KEY_UP,KEY_UP,KEY_UP,KEY_A,KEY_B);Slot_SettingsMenu();CHECK(slot_clock_visible);
     slot_platform=0;slot_count=1;slot_addon=0;
     events(KEY_RIGHT,KEY_B,0,0,0);Slot_CartBack();CHECK(slot_addon==1);
     slot_platform=1;slot_addon=0;

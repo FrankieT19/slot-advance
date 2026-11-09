@@ -28,6 +28,7 @@ Leave it empty for a blank footer.
 CONTROLS
 Left/Right: choose game. L/R: change system. A: play. Start: settings.
 Open Settings > Help for all controls and GBA Addon shortcuts.
+Set Show clock to Off in Settings to hide the footer clock.
 In GBA Addon and GB/GBC games, hold Select for 3 seconds to return and eject.
 Start+Select opens the in-game menu.
 GBA Addon and GB/GBC fade through black when returning.

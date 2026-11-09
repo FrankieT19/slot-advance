@@ -162,8 +162,9 @@ int main(void)
 {
     unsigned indices[3]={0},screen=0,selected=0,redraw=1,animations=1,wrap=1,addon=1,frame,moves=0;
     unsigned nav_index,nav_steps=0,seen_steps=0,about_armed=0,help_page=0;int pose=0,last_pose=0,last_base=0;
-    const char *const labels[]={"Appearance","Skeuomorphic","Animation","Wrap carousel","UI sounds","Boot mode","Select hold","Save states","Sleep patch","Remember shelf","Help","About"};
-    const char *values[]={"Wood","On","On","On","On","Addons","On","Off","Off","On","",""};
+    const char *const labels[]={"Appearance","Skeuomorphic","Animation","Wrap carousel","UI sounds","Boot mode","Select hold","Save states","Sleep patch","Remember shelf","Show clock","Help","About"};
+    enum { total=sizeof(labels)/sizeof(*labels) };
+    const char *values[]={"Wood","On","On","On","On","Addons","On","Off","Off","On","On","",""};
     irqInit();irqSet(IRQ_VBLANK,Slot_VBlank);irqEnable(IRQ_VBLANK);SetMode(MODE_3|BG2_ENABLE);setRepeat(10,4);UIAudio_Init();
     slot_frame=canvas.pixels;strcpy(slot_time,"14:32");strcpy(slot_username,"frankiet19");logic_tests();decoder_benchmark();
     Slot_BootSplash();Slot_FadeBlack();shelf(0,0,0);present();Slot_FadeIn();Slot_ResumeNav(3,0,wrap,animations);
@@ -177,16 +178,17 @@ int main(void)
         UIAudio_Update();scanKeys();down=keysDown();repeat=keysDownRepeat()|down;
         if(screen==1) {
             if(down&KEY_B){screen=0;Slot_ClearNav();redraw=1;}
-            if(repeat&KEY_DOWN){selected=(selected+1)%12;redraw=1;}
-            if(repeat&KEY_UP){selected=selected?selected-1:11;redraw=1;}
+            if(repeat&KEY_DOWN){selected=(selected+1)%total;redraw=1;}
+            if(repeat&KEY_UP){selected=selected?selected-1:total-1;redraw=1;}
             if(down&(KEY_A|KEY_LEFT|KEY_RIGHT)) {
                 if(selected==0)slot_theme=(slot_theme+1)%3;
                 if(selected==1)slot_skeuo^=1;
                 if(selected==2)animations^=1;
                 if(selected==3)wrap^=1;
                 if(selected==5)addon^=1;
-                if(selected==10){screen=6;help_page=0;about_armed=0;}
-                if(selected==11){screen=5;about_armed=0;}
+                if(selected==10)slot_clock_visible^=1;
+                if(selected==11){screen=6;help_page=0;about_armed=0;}
+                if(selected==12){screen=5;about_armed=0;}
                 redraw=1;
             }
         } else if(screen==3 || screen==4 || screen==5 || screen==6) {
@@ -228,7 +230,8 @@ int main(void)
             if(screen==1) {
                 values[0]=slot_theme==0?"Wood":slot_theme==1?"Dark":"Light";values[1]=slot_skeuo?"On":"Off";
                 values[2]=animations?"On":"Off";values[3]=wrap?"On":"Off";values[5]=addon?"Addons":"Clean";
-                Slot_Settings(labels,values,12,selected);
+                values[10]=slot_clock_visible?"On":"Off";
+                Slot_Settings(labels,values,total,selected);
             }
             if(screen==2)Slot_Board(slot_board,71,demo_titles[slot_platform][indices[slot_platform]],addon,slot_platform);
             if(screen==3)shelf(indices[slot_platform],0,256);

@@ -36,6 +36,7 @@ static uint16_t *slot_frame;
 static unsigned slot_theme; /* 0 wood, 1 dark, 2 light */
 static unsigned slot_platform;
 static unsigned slot_skeuo=1;
+static unsigned slot_clock_visible=1;
 static char slot_time[6]="--:--";
 static char slot_username[SLOT_USERNAME_MAX+1];
 static int slot_redraw_top=0,slot_redraw_bottom=160;
@@ -207,7 +208,7 @@ static void Slot_Clock(void)
 {
     /* DS Style glyphs are 6 pixels wide and 12 high, with no resampling. */
     Slot_Text(slot_username,6,145,Slot_Ink());
-    Slot_Text(slot_time,204,145,Slot_Ink());
+    if(slot_clock_visible)Slot_Text(slot_time,204,145,Slot_Ink());
 }
 static void Slot_BlankShelf(void)
 {

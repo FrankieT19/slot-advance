@@ -242,16 +242,19 @@ static void Slot_ConfigSet(const char *name,unsigned value)
     else if(!strcmp(name,"GBA") && value<MAX_files) slot_index[0]=value;
     else if(!strcmp(name,"GB") && value<MAX_files) slot_index[1]=value;
     else if(!strcmp(name,"GBC") && value<MAX_files) slot_index[2]=value;
+    else if(!strcmp(name,"Clock") && value<2) slot_clock_visible=value;
 }
-static const char *const slot_config_keys[]={"Theme","Animations","Wrap","Sounds","Remember","Addons","Reset","States","Sleep","Platform","GBA","GB","GBC","Skeuomorphic"};
+static const char *const slot_config_keys[]={"Theme","Animations","Wrap","Sounds","Remember","Addons","Reset","States","Sleep","Platform","GBA","GB","GBC","Skeuomorphic","Clock"};
+enum { SLOT_CONFIG_KEY_COUNT=sizeof(slot_config_keys)/sizeof(*slot_config_keys),
+       SLOT_CONFIG_CLOCK_BIT=1u<<(SLOT_CONFIG_KEY_COUNT-1) };
 static int Slot_ConfigKey(const char *name)
 {
-    unsigned i; for(i=0;i<14;i++) if(!strcmp(name,slot_config_keys[i])) return (int)i;
+    unsigned i; for(i=0;i<SLOT_CONFIG_KEY_COUNT;i++) if(!strcmp(name,slot_config_keys[i])) return (int)i;
     return -1;
 }
 static unsigned Slot_ReadConfigFile(const char *path)
 {
-    unsigned seen=0,ended=0,valid=1,value,pending[14],i,legacy,version;
+    unsigned seen=0,ended=0,valid=1,value,pending[SLOT_CONFIG_KEY_COUNT],i,legacy,version;
     if(f_open(&gfile,path,FA_READ)!=FR_OK) return 0;
     if(!f_gets(slot_line,sizeof(slot_line),&gfile)) { f_close(&gfile); return 0; }
     slot_line[strcspn(slot_line,"\r\n")]=0;
@@ -273,10 +276,12 @@ static unsigned Slot_ReadConfigFile(const char *path)
             ended=1;
         }
     }
-    if(f_error(&gfile) || !ended || seen!=(version<3?8191:16383)) valid=0;
+    /* Existing settings files have no Clock entry and keep the clock visible. */
+    if(f_error(&gfile) || !ended || (seen&~SLOT_CONFIG_CLOCK_BIT)!=(version<3?8191:16383)) valid=0;
     if(f_close(&gfile)!=FR_OK) valid=0;
     if(valid) {
-        for(i=0;i<(version<3?13:14);i++)Slot_ConfigSet(slot_config_keys[i],pending[i]);
+        slot_clock_visible=1;
+        for(i=0;i<SLOT_CONFIG_KEY_COUNT;i++)if(seen&(1u<<i))Slot_ConfigSet(slot_config_keys[i],pending[i]);
         if(version<3){slot_skeuo=1;slot_config_dirty=1;}
         if(legacy){slot_addon=1;gl_reset_on=1;slot_config_dirty=1;}
     }
@@ -294,9 +299,9 @@ static unsigned Slot_SaveConfig(void)
     if(!slot_config_dirty) return 1;
     f_mkdir("/SYSTEM"); f_mkdir(SLOT_DIR);
     length=snprintf(slot_line,sizeof(slot_line),
-        "SlotOmega=3\nTheme=%u\nAnimations=%u\nWrap=%u\nSounds=%u\nRemember=%u\nAddons=%u\nReset=%u\nStates=%u\nSleep=%u\nPlatform=%u\nGBA=%u\nGB=%u\nGBC=%u\nSkeuomorphic=%u\nEnd=1\n",
+        "SlotOmega=3\nTheme=%u\nAnimations=%u\nWrap=%u\nSounds=%u\nRemember=%u\nAddons=%u\nReset=%u\nStates=%u\nSleep=%u\nPlatform=%u\nGBA=%u\nGB=%u\nGBC=%u\nSkeuomorphic=%u\nClock=%u\nEnd=1\n",
         slot_theme,slot_animations,slot_wrap,launcher_sounds_enabled,slot_remember,slot_addon,
-        gl_reset_on,gl_rts_on,gl_sleep_on,slot_platform,slot_index[0],slot_index[1],slot_index[2],slot_skeuo);
+        gl_reset_on,gl_rts_on,gl_sleep_on,slot_platform,slot_index[0],slot_index[1],slot_index[2],slot_skeuo,slot_clock_visible);
     if(length>=sizeof(slot_line) || f_open(&gfile,SLOT_CONFIG_TMP,FA_CREATE_ALWAYS|FA_WRITE)!=FR_OK) return 0;
     result=f_write(&gfile,slot_line,length,&written);
     if(f_close(&gfile)!=FR_OK || result!=FR_OK || written!=length) return 0;
@@ -450,8 +455,9 @@ static void Slot_ShowHelp(void)
 }
 static void Slot_SettingsMenu(void)
 {
-    static const char *const labels[]={"Appearance","Skeuomorphic","Animation","Wrap carousel","UI sounds","Boot mode","Select hold","Save states","Sleep patch","Remember shelf","Help","About"};
-    const char *values[12];unsigned selected=0,dirty=1;
+    static const char *const labels[]={"Appearance","Skeuomorphic","Animation","Wrap carousel","UI sounds","Boot mode","Select hold","Save states","Sleep patch","Remember shelf","Show clock","Help","About"};
+    enum { total=sizeof(labels)/sizeof(*labels) };
+    const char *values[total];unsigned selected=0,dirty=1;
     Slot_ClearNav();
     while(1) {
         unsigned down,repeat;
@@ -460,8 +466,8 @@ static void Slot_SettingsMenu(void)
             values[1]=slot_skeuo?"On":"Off";values[2]=slot_animations?"On":"Off";values[3]=slot_wrap?"On":"Off";
             values[4]=launcher_sounds_enabled?"On":"Off";values[5]=slot_addon?"Addons":"Clean";
             values[6]=gl_reset_on?"On":"Off";values[7]=gl_rts_on?"On":"Off";values[8]=gl_sleep_on?"On":"Off";
-            values[9]=slot_remember?"On":"Off";values[10]="";values[11]="";
-            Slot_Settings(labels,values,12,selected);Slot_Present();dirty=0;
+            values[9]=slot_remember?"On":"Off";values[10]=slot_clock_visible?"On":"Off";values[11]="";values[12]="";
+            Slot_Settings(labels,values,total,selected);Slot_Present();dirty=0;
         }
         VBlankIntrWait();UIAudio_Update();scanKeys();down=keysDown();repeat=keysDownRepeat()|down;
         if(slot_vblanks%60==0 && Slot_RefreshClock())dirty=1;
@@ -469,8 +475,8 @@ static void Slot_SettingsMenu(void)
             if(!Slot_SaveConfig()){Slot_Message("Settings write failed","Check card space");wait_btn();}
             Slot_ResetCache();Slot_FillCache();Slot_ClearNav();return;
         }
-        if(repeat&KEY_UP){selected=selected?selected-1:11;dirty=1;}
-        if(repeat&KEY_DOWN){selected=(selected+1)%12;dirty=1;}
+        if(repeat&KEY_UP){selected=selected?selected-1:total-1;dirty=1;}
+        if(repeat&KEY_DOWN){selected=(selected+1)%total;dirty=1;}
         if(down&(KEY_A|KEY_LEFT|KEY_RIGHT)) {
             slot_config_dirty=1;dirty=1;
             switch(selected) {
@@ -479,8 +485,9 @@ static void Slot_SettingsMenu(void)
                 case 4:launcher_sounds_enabled^=1;break;case 5:slot_addon^=1;break;
                 case 6:gl_reset_on^=1;break;case 7:gl_rts_on^=1;break;case 8:gl_sleep_on^=1;break;
                 case 9:slot_remember^=1;break;
-                case 10:Slot_ShowHelp();break;
-                case 11:Slot_ShowAbout();break;
+                case 10:slot_clock_visible^=1;break;
+                case 11:Slot_ShowHelp();break;
+                case 12:Slot_ShowAbout();break;
             }
         }
     }
