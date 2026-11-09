@@ -2,33 +2,33 @@
   {
     "target": "omega",
     "file": "ezkernel.bin",
-    "bytes": 1752452,
+    "bytes": 1752588,
     "budget_bytes": 2097152,
-    "headroom_bytes": 344700,
-    "sha256": "063ce4616a5058261073155f6ed2ece7aaadbb56b93ccd0f53e8d2a6d96042cc",
+    "headroom_bytes": 344564,
+    "sha256": "101582766f1ac3c275e94abbe4305533055dee00d58550e4d01e939ce5620d22",
     "ram": {
       "ewram_static_bytes": 249912,
       "ewram_free_bytes": 12232,
-      "iwram_static_bytes": 28160,
-      "iwram_headroom_to_user_stack_bytes": 4352
+      "iwram_static_bytes": 21888,
+      "iwram_headroom_to_user_stack_bytes": 10624
     },
-    "addon_patch_bytes": 6272,
+    "addon_patch_bytes": 6432,
     "compiler": "arm-none-eabi-gcc.exe (devkitARM) 16.1.0"
   },
   {
     "target": "omega-de",
     "file": "ezkernelnew.bin",
-    "bytes": 1752572,
+    "bytes": 1752708,
     "budget_bytes": 2097152,
-    "headroom_bytes": 344580,
-    "sha256": "bf629a0c5faa12c60e460c3fec1460d7d2fb8b2ec2deec870d9310129a6ea668",
+    "headroom_bytes": 344444,
+    "sha256": "72d05ef0a768a91361d6fa7fa7bcc1fb9d12345e185cff67d2f4ab29ead2bee7",
     "ram": {
       "ewram_static_bytes": 249912,
       "ewram_free_bytes": 12232,
-      "iwram_static_bytes": 28568,
-      "iwram_headroom_to_user_stack_bytes": 3944
+      "iwram_static_bytes": 22296,
+      "iwram_headroom_to_user_stack_bytes": 10216
     },
-    "addon_patch_bytes": 6272,
+    "addon_patch_bytes": 6432,
     "compiler": "arm-none-eabi-gcc.exe (devkitARM) 16.1.0"
   }
 ]

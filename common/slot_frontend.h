@@ -377,13 +377,8 @@ static void Slot_Play(void)
 {
     unsigned frame,start,sounded=0;
     if(!slot_count) return;
-    slot_config_dirty=1;
-    if(!Slot_SaveConfig()) { Slot_Message("Settings could not be saved","B: return"); wait_btn(); }
-    Slot_ArmReturn(pFilename_buffer[slot_index[slot_platform]].filename,slot_platform,gl_reset_on?SLOT_RETURN_HOLD_ENABLED:0);
-#ifdef __arm__
-    Slot_SetAddonTheme(slot_theme);
-#endif
-    Slot_ClearNav();Slot_FillCache();
+    Slot_ClearNav();
+    /* Start from the displayed cache. Card access belongs after the insert. */
     if(slot_animations) {
         slot_partial_motion=1;start=slot_vblanks;
         do {
@@ -394,11 +389,24 @@ static void Slot_Play(void)
         }while(frame<256);
         slot_partial_motion=0;
     } else {UIAudio_PlaySfx(UI_SFX_LAUNCH);Slot_DrawShelf(slot_index[slot_platform],0,256,0);Slot_Present();}
+    slot_loading_dark=slot_theme!=2;
+    Launcher_BeginLaunchScreen();
+    Slot_CancelArt();
+    slot_config_dirty=1;
+    if(!Slot_SaveConfig()) {
+        Launcher_EndLaunchIndicator();
+        Slot_Message("Settings could not be saved","B: return");wait_btn();
+        Slot_DrawShelf(slot_index[slot_platform],0,256,0);Slot_Present();
+        Launcher_BeginLaunchScreen();
+    }
+    Slot_ArmReturn(pFilename_buffer[slot_index[slot_platform]].filename,slot_platform,gl_reset_on?SLOT_RETURN_HOLD_ENABLED:0);
+#ifdef __arm__
+    Slot_SetAddonTheme(slot_theme);
+#endif
     /* Stock DS Style copies the chosen filename into EWRAM before game loading
        overwrites PSRAM. Keep its save, patch, emulator and hardware boot paths. */
     launcher_carousel_animations=0; launcher_active_page=SD_list;
     gl_boot_mode_pref=slot_addon?2:1;
-    slot_loading_dark=slot_theme!=2;
     SD_list_MENU(slot_index[slot_platform],0,0xBB);
     Slot_ArmReturn("",3,0);
     Launcher_EndLaunchIndicator();
@@ -410,10 +418,6 @@ static void Slot_CartBack(void)
 {
     unsigned dirty=1;
     if(slot_platform!=0 || !slot_count) return;
-    Slot_ArmReturn(pFilename_buffer[slot_index[slot_platform]].filename,slot_platform,gl_reset_on?SLOT_RETURN_HOLD_ENABLED:0);
-#ifdef __arm__
-    Slot_SetAddonTheme(slot_theme);
-#endif
     while(1) {
         unsigned down;
         if(dirty) { Slot_Board(slot_board,71,slot_title,slot_addon,slot_platform); Slot_Present(); dirty=0; }
@@ -565,7 +569,7 @@ static void Slot_Run(void)
             Slot_CancelArt();Slot_ClearNav();Slot_SettingsMenu();modal=1;
         } else if((down&KEY_B) && slot_platform==0) {
             Slot_CancelArt();Slot_ClearNav();Slot_CartBack();Slot_SaveConfig();modal=1;
-        } else if(down&KEY_A) {Slot_CancelArt();Slot_ClearNav();Slot_Play();modal=1;}
+        } else if(down&KEY_A) {Slot_Play();modal=1;}
         if(modal){Slot_ResumeNav(slot_count,slot_index[slot_platform],slot_wrap,slot_animations);nav_index=slot_index[slot_platform];pose=0;redraw=1;}
         base=(int)nav_index+(pose>>8);fraction=pose-(pose>>8)*256;
         if(redraw || art_changed || pose!=last_pose || base!=last_base) {

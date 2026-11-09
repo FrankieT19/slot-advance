@@ -100,7 +100,7 @@ def build(model,source,sdk,out,test=False):
     if test:flags+=['-DSLOT_EMULATOR_TEST']
     files=sorted(src.glob('*.c'))+[src/'all.s',src/'gba_crt0_my.s',ROOT/'common/slot_jagoomba.c',ROOT/'common/slot_emulator_reset.s']
     def compile(f):
-        obj=folder/(f.stem+'.o');extra=['-x','assembler-with-cpp'] if f.suffix=='.s' else []
+        obj=folder/(f.stem+'.o');extra=['-x','assembler-with-cpp','-Wa,-I'+str(ROOT/'common')] if f.suffix=='.s' else []
         if f.name=='slot_jagoomba.c':extra+=['-marm']
         run([gcc,*flags,*extra,'-c',f,'-o',obj],f.stem);return obj
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:objects=list(pool.map(compile,files))

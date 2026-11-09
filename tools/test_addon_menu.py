@@ -2,6 +2,7 @@
 from pathlib import Path
 import argparse,ctypes as C,json,subprocess,sys
 from test_preview import Emulator
+from boot_entry import install_black_entry
 ROOT=Path(__file__).resolve().parents[1]
 
 SHIMS=r'''
@@ -44,6 +45,10 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--core',type=Path,required=True);a=p.parse_args()
     work=ROOT/'work/addon-menu-test';work.mkdir(parents=True,exist_ok=True)
     source=(ROOT/'kernels/omega/source/gba_rts_patch.s').read_bytes().decode('latin1').replace('\r\n','\n')
+    # Keep fixture settings writable and install the real patch IRQ through
+    # a trampoline that supplies the BIOS IO-base register.
+    source=source.replace('.section .text.slot_gba_addon', '.section .iwram')
+    source=source.replace('RTS_irq:\n', '.global Slot_TestIrq\nSlot_TestIrq:\n    mov r0,#0x04000000\n    b RTS_irq\nRTS_irq:\n')
     marker=(ROOT/'common/slot_return_mark.inc').read_text().replace('ldr r0,=0x0e00ff00','ldr r0,=0x0202ff00').replace('add r0,r0,#8','ldr r0,=0x0e00ff08')
     source=source.replace('.include "slot_return_mark.inc"',marker)
     start=source.index('SetRampage:\n');end=source.index('backup_LCD:\n',start)
@@ -54,6 +59,7 @@ def main():
     subprocess.run(command,check=True)
     subprocess.run([str(sdk/'devkitARM/bin/arm-none-eabi-objcopy.exe'),'-O','binary',str(elf),str(rom)],check=True)
     subprocess.run([str(sdk/'tools/bin/gbafix.exe'),str(rom),'-tSLOT MENU TEST'],check=True,stdout=subprocess.DEVNULL)
+    install_black_entry(rom,sdk,work)
     e=Emulator(a.core);e.load(rom);e.run(180)
     def result(i):return C.c_uint.from_address(e.ewram[0]+0x3f000+i*4).value
     def command(n):C.c_uint.from_address(e.ewram[0]+0x3f040).value=n;e.run(3)
@@ -89,7 +95,36 @@ def main():
     press(8);e.run(20);assert result(2)==0 and result(1)==result(3);checks+=2
     command(1);command(3);open_menu();press(5);press(5);press(5);press(8);shot('menu-cheats.png')
     assert result(2)==1;press(0);e.run(20);assert result(7)==1 and result(1)==result(3);checks+=3
-    report={'status':'pass','checks':checks,'failed':0,'scope':'Actual addon menu/return-marker assembly in mGBA with emulated SRAM banks: native glyph pixels, dirty-row-only navigation with unrelated VRAM sentinels, selection, disabled states, resume VRAM/blend restoration, cheat toggle, warm cookie and cold-start rejection. Real cartridge mapper/reset/SD timing and save/load-state IO still require hardware.'}
+    def check_fade(route,uniform):
+        nonlocal checks
+        levels=[]
+        for _ in range(50):
+            e.run(1)
+            assert e.frame.getextrema()!=((255,255),)*3,(route,'white frame')
+            if uniform:
+                colors=e.frame.getcolors(2)
+                assert colors and len(colors)==1,(route,'inconsistent scanlines')
+            levels.append(sum(e.frame.convert('L').tobytes()))
+        assert result(9)==0x53574a45,(route,'warm reset did not reach the kernel')
+        first_black=levels.index(0)
+        last_black=max(i for i,level in enumerate(levels) if level==0)
+        assert last_black>first_black,(route,'no black handoff')
+        for sequence in (levels[:first_black],levels[last_black+1:][::-1]):
+            assert len(set(sequence))>=5 and sequence==sorted(sequence,reverse=True),(route,levels)
+        checks+=5
+
+    command(1);command(5);open_menu()
+    press(5);press(5);press(5)
+    e.keys={8};e.run(2);e.keys=set()
+    check_fade('menu return',False)
+    e.close()
+
+    e=Emulator(a.core);e.load(rom);e.run(180)
+    command(4);e.run(10);assert result(17)==4,tuple(result(i) for i in (0,4,5,9,16,17))
+    e.keys={2};e.run(174)
+    check_fade('Select hold with window and HBlank DMA',True)
+    e.close()
+    report={'status':'pass','checks':checks,'failed':0,'scope':'Actual addon assembly in mGBA with emulated SRAM banks: menu glyphs, dirty rows, disabled states, resume, cheats, warm/cold markers and frame capture of both return fades. Select-hold runs through the real IRQ path with a display window and HBlank DMA active. Cartridge mapper/reset/SD timing and save states still require hardware.'}
     (ROOT/'validation/addon-menu-validation.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
     print(json.dumps(report,indent=2))
 if __name__=='__main__':main()

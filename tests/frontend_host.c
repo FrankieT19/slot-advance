@@ -133,6 +133,7 @@ static int f_closedir(DIR *d) { if(d->handle!=INVALID_HANDLE_VALUE)FindClose(d->
 static int f_chdir(const char *p) { snprintf(mock_cwd,sizeof(mock_cwd),"%s",p);return FR_OK; }
 static volatile unsigned slot_vblanks;
 static unsigned capture_motion,capture_count,capture_hashes[128],eject_sounds;
+static unsigned capture_reads[128],capture_writes[128];
 static unsigned centre_hash(void)
 {
     unsigned x,y,h=2166136261u;uint16_t *pixels=(uint16_t*)pReadCache;
@@ -141,7 +142,11 @@ static unsigned centre_hash(void)
 }
 static void VBlankIntrWait(void) {
     slot_vblanks++;
-    if(capture_motion && capture_count<128)capture_hashes[capture_count++]=centre_hash();
+    if(capture_motion && capture_count<128){
+        capture_reads[capture_count]=io_read_calls;
+        capture_writes[capture_count]=io_write_calls;
+        capture_hashes[capture_count++]=centre_hash();
+    }
 }
 static void SetPSRampage(unsigned page) { (void)page; }
 static void SetMode(unsigned mode) { (void)mode; }
@@ -157,10 +162,17 @@ static unsigned keysHeld(void){return mock_key;}
 static unsigned keysDown(void) { return mock_key; }
 static unsigned keysDownRepeat(void) { return 0; } /* Assert first-press handling works. */
 static void wait_btn(void) { mock_waits++; }
-static void Launcher_EndLaunchIndicator(void) {}
+static unsigned mock_indicator_active,mock_indicator_frame,mock_indicator_writes;
+static void Launcher_BeginLaunchScreen(void)
+{
+    mock_indicator_active=1;
+    mock_indicator_frame=capture_count;
+    mock_indicator_writes=io_write_calls;
+}
+static void Launcher_EndLaunchIndicator(void) { mock_indicator_active=0; }
 static unsigned SD_list_MENU(unsigned index,unsigned select,unsigned recent)
 {
-    if(select || recent!=0xbb)abort();mock_boots++;mock_boot_index=index;
+    if(select || recent!=0xbb || !mock_indicator_active)abort();mock_boots++;mock_boot_index=index;
     /* Launch destroys shared scratch exactly as the actual backend does. */
     memset(pReadCache,0xdd,sizeof(pReadCache));return 0;
 }
@@ -437,11 +449,16 @@ static void streaming_tests(void)
 __declspec(dllexport) unsigned Slot_HostStreamMisses(void){return stream_steady_misses;}
 static void eject_tests(void)
 {
-    unsigned insert[64],i,rest,platform;
+    unsigned insert[64],i,rest,platform,reads,writes;
     for(platform=0;platform<3;platform++){
     slot_platform=platform;slot_index[platform]=0;slot_animations=1;slot_partial_motion=0;Slot_Scan();Slot_DrawShelf(0,0,0,0);rest=centre_hash();
+    reads=io_read_calls;writes=io_write_calls;
     capture_count=0;capture_motion=1;Slot_Play();capture_motion=0;
     CHECK(capture_count==SLOT_INSERT_FRAMES+1); /* Mock launch returns, then scans once. */
+    CHECK(capture_reads[SLOT_INSERT_FRAMES-1]==reads && capture_writes[SLOT_INSERT_FRAMES-1]==writes);
+    CHECK(mock_indicator_frame==SLOT_INSERT_FRAMES && mock_indicator_writes==writes);
+    CHECK(!mock_indicator_active);
+    CHECK(io_write_calls==writes+1);
     memcpy(insert,capture_hashes,sizeof(unsigned)*SLOT_INSERT_FRAMES);
     capture_count=0;capture_motion=1;slot_return_pending=1;eject_sounds=0;Slot_EjectReplay();capture_motion=0;
     CHECK(capture_count==1+SLOT_EJECT_HOLD_FRAMES+SLOT_EJECT_FRAMES);

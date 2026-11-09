@@ -6,12 +6,12 @@ Cartridge carousels for GBA, GB and GBC, with label artwork, cartridge colours, 
 
 ## Install
 
-Download **v1.1** for your cartridge:
+Download **v1.2** for your cartridge.
 
 | Cartridge | Download |
 | --- | --- |
-| Original Omega | [Download](https://github.com/FrankieT19/slot-advance/releases/download/v1.1/slot-advance-v1.1-omega.zip) |
-| Original Omega DE, Rev A / Rev B | [Download](https://github.com/FrankieT19/slot-advance/releases/download/v1.1/slot-advance-v1.1-omega-de.zip) |
+| Original Omega | [Download](https://github.com/FrankieT19/slot-advance/releases/download/v1.2/slot-advance-v1.2-omega.zip) |
+| Original Omega DE, Rev A / Rev B | [Download](https://github.com/FrankieT19/slot-advance/releases/download/v1.2/slot-advance-v1.2-omega-de.zip) |
 
 The newer DE B / EZODE-B is not supported.
 
@@ -44,7 +44,7 @@ Edit the included **`USERNAME.TXT`** on your card. Its first line displays up to
 
 Open **Settings → Help** for all controls. In **GBA Addon, GB and GBC games**, press **Start + Select** for the in-game menu, or hold **Select for three seconds** to return to the carousel and eject the cartridge. Enable **Select hold** in Settings; **Save states** enables save/load in the GBA Addon menu.
 
-GB/GBC games run without SGB borders and fade through black when exiting. Choosing **Exit** in the emulator menu also returns and ejects the cartridge.
+GBA Addon, GB and GBC games fade through black on return. GB/GBC games run without SGB borders, and **Exit** in the emulator menu also returns and ejects the cartridge.
 
 ## Credits
 

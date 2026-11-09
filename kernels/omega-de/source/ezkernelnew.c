@@ -14123,7 +14123,8 @@ u8 SD_list_MENU(u32 show_offset,	u32 file_select,u32 play_re )
     u32 menu_visible = 0;
     u32 silent_return = launcher_silent_menu_return;
     launcher_silent_menu_return = 0;
-    Launcher_EndLaunchIndicator();
+    /* A direct shelf launch already shows its indicator. */
+    if(play_re != 0xBB || !gl_boot_mode_pref) Launcher_EndLaunchIndicator();
 	u32 re_menu=1;
 	u32 MENU_max;
 	u32 ignore_b_frames=0;

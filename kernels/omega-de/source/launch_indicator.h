@@ -18,7 +18,8 @@ static void Launcher_LaunchVBlank(void)
     u32 i;
     if(!launcher_launch_screen_active) return;
     launcher_spinner.frame++;
-    if(launcher_spinner.frame < 6) return;
+    /* Leave the inserted cart visible for about 150 ms while launch IO runs. */
+    if(launcher_spinner.frame < 9) return;
     LAUNCHER_SPINNER_OAM[0] = launcher_spinner.y;
     for(i = 0; i < 6; i++)
     {

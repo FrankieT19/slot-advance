@@ -8,7 +8,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--core',type=Path,required=True);a=p.parse_args()
     out=ROOT/'work/emulator-reset-test';out.mkdir(parents=True,exist_ok=True)
     sdk=Path('C:/devkitPro');gcc=sdk/'devkitARM/bin/arm-none-eabi-gcc.exe';elf=out/'reset.elf';rom=out/'reset.gba'
-    subprocess.run([str(gcc),'-Os','-mcpu=arm7tdmi','-marm','-specs=gba.specs','-I'+str(ROOT/'common'),'-I'+str(sdk/'libgba/include'),str(ROOT/'tests/emulator_reset_harness.c'),str(ROOT/'common/slot_emulator_reset.s'),'-L'+str(sdk/'libgba/lib'),'-lgba','-o',str(elf)],check=True)
+    subprocess.run([str(gcc),'-Os','-mcpu=arm7tdmi','-marm','-specs=gba.specs','-I'+str(ROOT/'common'),'-Wa,-I'+str(ROOT/'common'),'-I'+str(sdk/'libgba/include'),str(ROOT/'tests/emulator_reset_harness.c'),str(ROOT/'common/slot_emulator_reset.s'),'-L'+str(sdk/'libgba/lib'),'-lgba','-o',str(elf)],check=True)
     subprocess.run([str(sdk/'devkitARM/bin/arm-none-eabi-objcopy.exe'),'-O','binary',str(elf),str(rom)],check=True)
     subprocess.run([str(sdk/'tools/bin/gbafix.exe'),str(rom)],check=True,stdout=subprocess.DEVNULL)
     install_black_entry(rom,sdk,out)
