@@ -28,6 +28,10 @@ static void SlotNav_Step(volatile SlotNavigation *n,int by)
     if((unsigned)target>=n->count){if(!n->wrap)return;target=0;}
     n->index=target;n->offset-=by*65536;n->steps++;
 }
+static int32_t SlotNav_RoundQ30(int64_t value)
+{
+    return (int32_t)((value+536870912-(value<0))>>30);
+}
 static void SlotNav_Tick(volatile SlotNavigation *n,unsigned held,unsigned now)
 {
     unsigned horizontal=held&48;
@@ -47,16 +51,16 @@ static void SlotNav_Tick(volatile SlotNavigation *n,unsigned held,unsigned now)
         /* Exact GBA VBlank dt=280896/16777216 s. Q30 exp(-16*dt).
            Closed-form spring update, matching Slot rather than Euler steps. */
         int32_t pull=n->velocity+16*n->offset;
-        int32_t off=n->offset+(int32_t)(((int64_t)pull*17977344)>>30);
-        int32_t vel=n->velocity-(int32_t)(((int64_t)16*pull*17977344)>>30);
-        n->offset=(int32_t)(((int64_t)off*SLOT_NAV_DECAY)>>30);
-        n->velocity=(int32_t)(((int64_t)vel*SLOT_NAV_DECAY)>>30);
+        int32_t off=n->offset+SlotNav_RoundQ30((int64_t)pull*17977344);
+        int32_t vel=n->velocity-SlotNav_RoundQ30((int64_t)16*pull*17977344);
+        n->offset=SlotNav_RoundQ30((int64_t)off*SLOT_NAV_DECAY);
+        n->velocity=SlotNav_RoundQ30((int64_t)vel*SLOT_NAV_DECAY);
         if(n->offset>-8 && n->offset<8 && n->velocity>-128 && n->velocity<128){n->offset=0;n->velocity=0;}
     }
 }
 static int SlotNav_Pose(int32_t offset)
 {
-    return (offset+128)>>8; /* Q8 pose; at most 0.24 GBA pixels of rounding. */
+    return (offset+128-(offset<0))>>8; /* Q8 pose, with symmetric half-pixel ties. */
 }
 static unsigned Slot_DialogCanClose(unsigned *armed,unsigned held,unsigned down)
 {

@@ -6,12 +6,12 @@ Cartridge carousels for GBA, GB and GBC, with label artwork, cartridge colours, 
 
 ## Install
 
-Download **v1.2.1** for your cartridge.
+Download **v1.2.2** for your cartridge.
 
 | Cartridge | Download |
 | --- | --- |
-| Original Omega | [Download](https://github.com/FrankieT19/slot-advance/releases/download/v1.2.1/slot-advance-v1.2.1-omega.zip) |
-| Original Omega DE, Rev A / Rev B | [Download](https://github.com/FrankieT19/slot-advance/releases/download/v1.2.1/slot-advance-v1.2.1-omega-de.zip) |
+| Original Omega | [Download](https://github.com/FrankieT19/slot-advance/releases/download/v1.2.2/slot-advance-v1.2.2-omega.zip) |
+| Original Omega DE, Rev A / Rev B | [Download](https://github.com/FrankieT19/slot-advance/releases/download/v1.2.2/slot-advance-v1.2.2-omega-de.zip) |
 
 The newer DE B / EZODE-B is not supported.
 

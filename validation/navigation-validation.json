@@ -1,7 +1,7 @@
 {
   "status": "pass",
   "vblank_comparisons": 84000,
-  "max_position_error_gba_pixels": 0.022500371926438743,
+  "max_position_error_gba_pixels": 0.01530871749620694,
   "hold_step_times_ms": [
     0,
     401,

@@ -121,23 +121,12 @@ static void logic_tests(void)
     RESULT[0]=0x534c4f54;RESULT[1]=tests;RESULT[2]=failures;
 }
 static void present(void) { VBlankIntrWait();dmaCopy(slot_frame+slot_redraw_top*240,VideoBuffer+slot_redraw_top*240,(slot_redraw_bottom-slot_redraw_top)*240*2); }
-static unsigned profile_ticks(void){volatile unsigned short *t=(volatile unsigned short*)0x04000108;return t[0]|((unsigned)t[2]<<16);}
 static void shelf(int index,int progress,int drop)
 {
-    int d,pass;
-    Slot_BeginShelf(slot_partial_motion && !drop,slot_partial_motion?(slot_platform==0?44:13):0,slot_partial_motion?(drop?160:(slot_platform==0?122:131)):160);
-    for(pass=0;pass<2;pass++) {
-    if(pass){RESULT[12]=profile_ticks();Slot_BeginShelfPaint();RESULT[13]=profile_ticks();}
-    Slot_BeginFastFrame();
-    for(d=-2;d<=2;d++) {
-        int relative=d*256-progress;
-        int scale=Slot_CarouselScale(relative),centre=Slot_CarouselCentre(slot_platform,relative);
-        int half=Slot_ScaledExtent(slot_widths[slot_platform],scale)/2;
-        int n=Slot_IndexForCount((int)index+d,3,1);
-        if((!drop || d==0) && centre+half>0 && centre-half<240) Slot_CartQ8(Slot_FastPixels((slot_skeuo?demo_real:demo_flat)[slot_platform][n],slot_platform),slot_platform,centre,scale,d==0?drop:0);
-    }
-    }
-    RESULT[14]=profile_ticks();Slot_EndShelf();RESULT[15]=profile_ticks();
+    const uint16_t *sources[5];
+    int i;
+    for(i=0;i<5;i++)sources[i]=(slot_skeuo?demo_real:demo_flat)[slot_platform][Slot_IndexForCount(index+i-2,3,1)];
+    Slot_DrawShelfCarts(sources,progress,drop);
     if(!slot_partial_motion || drop)Slot_Chrome(3,index,drop?0:demo_titles[slot_platform][Slot_IndexForCount(index,3,1)],0,0);
 }
 static void profile_start(void) {

@@ -96,10 +96,19 @@ static void Slot_Centred(const char *text,int y,uint16_t colour)
 {
     Slot_Text(text,(240-(int)strlen(text)*6)/2,y,colour);
 }
+static inline void Slot_MapScaledEdges(unsigned char *inverse,unsigned sw,unsigned w,unsigned step)
+{
+    unsigned sx,dx=0,position=0;
+    for(sx=0;sx<=sw;sx++) {
+        while(dx<w && (position>>16)<sx){dx++;position+=step;}
+        inverse[sx]=dx;
+    }
+}
 static void SLOT_FAST Slot_Image(const uint16_t *src,int sw,int sh,int x,int y,int w,int h)
 {
     int xx,yy,x1=x<0?-x:0,y1=y<0?-y:0,x2=w,y2=h;
     int map[120]; unsigned step_x,step_y;
+    unsigned char inverse[121];
     const SlotOpaque *opaque=Slot_OpaqueInfo(src);
     if(x+w>240) x2=240-x;
     if(y+h>160) y2=160-y;
@@ -112,6 +121,7 @@ static void SLOT_FAST Slot_Image(const uint16_t *src,int sw,int sh,int x,int y,i
         return;
     }
     step_x=((unsigned)sw<<16)/(unsigned)w;step_y=((unsigned)sh<<16)/(unsigned)h;
+    if(opaque)Slot_MapScaledEdges(inverse,sw,w,step_x);
     /* Byte offsets let ARM7 load a scaled pixel directly from its row base.
        Avoid an addition and shift inside every pixel iteration. */
     for(xx=x1;xx<x2;xx++) map[xx]=((xx*step_x)>>16)*2;
@@ -120,10 +130,12 @@ static void SLOT_FAST Slot_Image(const uint16_t *src,int sw,int sh,int x,int y,i
         const unsigned char *s=(const unsigned char*)(src+sy*sw);
         uint16_t *d;const int *offset;int remaining;
         if(opaque && opaque->left[sy]!=255) {
-            while(first<last && map[first]<(int)opaque->left[sy]*2)first++;
-            while(last>first && map[last-1]>=(int)opaque->right[sy]*2)last--;
+            int left=inverse[opaque->left[sy]],right=inverse[opaque->right[sy]];
+            if(first<left)first=left;
+            if(last>right)last=right;
+            if(first>=last)continue;
             d=slot_frame+(y+yy)*240+x+first;offset=map+first;remaining=last-first;
-            if(w==sw && h==sh){if(remaining)SLOT_COPY(d,s+first*2,remaining*2);}
+            if(w==sw && h==sh)SLOT_COPY(d,s+first*2,remaining*2);
             else Slot_BlitOpaqueRow(s,d,offset,remaining);
         } else {
             d=slot_frame+(y+yy)*240+x+x1;offset=map+x1;remaining=x2-x1;
@@ -161,10 +173,10 @@ static inline void Slot_RecordSpan(int y,int left,int right)
 }
 static void SLOT_FAST Slot_RecordCart(const uint16_t *pixels,unsigned sw,unsigned sh,int x,int y,int w,int h)
 {
-    const SlotOpaque *o=Slot_OpaqueInfo(pixels);unsigned step_x,step_y,sx,dx=0;int yy;unsigned char inverse[121];
+    const SlotOpaque *o=Slot_OpaqueInfo(pixels);unsigned step_x,step_y;int yy;unsigned char inverse[121];
     if(!o){slot_coverage_safe=0;return;}
     step_x=(sw<<16)/w;step_y=(sh<<16)/h;
-    for(sx=0;sx<=sw;sx++){while(dx<(unsigned)w && (dx*step_x>>16)<sx)dx++;inverse[sx]=dx;}
+    Slot_MapScaledEdges(inverse,sw,w,step_x);
     for(yy=0;yy<h && y+yy<160;yy++)if(y+yy>=0) {
         unsigned sy=(yy*step_y)>>16;
         if(o->left[sy]==255){slot_coverage_safe=0;return;}
@@ -235,7 +247,10 @@ static void Slot_Empty(const char *directory,const char *error)
 static int Slot_CarouselScale(int relative)
 {int dist=relative<0?-relative:relative;return 25600-(dist>256?256:dist)*22;}
 static int Slot_CarouselCentre(unsigned platform,int relative)
-{return 120+((relative*(int)slot_widths[platform]+128)>>8);}
+{
+    int position=relative*(int)slot_widths[platform];
+    return 120+((position+128-(position<0))>>8);
+}
 static int Slot_ScaledExtent(unsigned extent,int scale)
 {return (extent*scale+12800)/25600;}
 static void SLOT_FAST Slot_CartQ8(const uint16_t *pixels,unsigned platform,int centre,int scale,int drop)

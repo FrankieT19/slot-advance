@@ -32,7 +32,8 @@ class Reference:
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--tcc',type=Path,required=True);a=p.parse_args();base=a.tcc.resolve()
-    with tempfile.TemporaryDirectory(dir=ROOT.parent.parent/'work') as folder:
+    work=ROOT/'work';work.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=work) as folder:
         folder=Path(folder);source=folder/'nav.c';dll=folder/'nav.dll'
         source.write_text('#include "slot_navigation.h"\n__declspec(dllexport) void reset(SlotNavigation*n,unsigned c,unsigned i,unsigned w,unsigned a){SlotNav_Reset(n,c,i,w,a);}\n__declspec(dllexport) void tick(SlotNavigation*n,unsigned held,unsigned now){SlotNav_Tick(n,held,now);}\n',encoding='utf-8')
         tcc=C.CDLL(str(base/'libtcc.dll'));tcc.tcc_new.restype=C.c_void_p
@@ -41,6 +42,13 @@ def main():
         assert tcc.tcc_add_file(state,str(source).encode())==0;assert tcc.tcc_output_file(state,str(dll).encode())==0;tcc.tcc_delete(state)
         lib=C.CDLL(str(dll));lib.reset.argtypes=[C.POINTER(Nav)]+[C.c_uint]*4;lib.tick.argtypes=[C.POINTER(Nav),C.c_uint,C.c_uint]
         rng=random.Random(4096);checks=0;worst=0;repeat=[]
+        left,right=Nav(),Nav()
+        for nav in (left,right):lib.reset(C.byref(nav),512,0,1,1)
+        for frame in range(180):
+            now=int(frame*DT*1000)
+            lib.tick(C.byref(left),32 if frame<120 else 0,now)
+            lib.tick(C.byref(right),16 if frame<120 else 0,now)
+            assert left.offset==-right.offset and left.velocity==-right.velocity,frame
         for count,wrap,animated in [(512,1,1),(3,1,1),(2,1,1),(512,0,1),(0,1,1),(1,1,1),(3,1,0)]:
             n=Nav();lib.reset(C.byref(n),count,0,wrap,animated);r=Reference(count,0,wrap,animated)
             held=0

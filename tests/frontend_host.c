@@ -375,6 +375,28 @@ static void refinement_tests(void)
     }
 }
 static unsigned stream_steady_misses,stream_steady_frames;
+static void draw_cache_tests(void)
+{
+    const uint16_t *left[5]={0},*right[5]={0},*saved[4];
+    unsigned i;
+    Slot_ResetCache();
+    slot_platform=1;slot_partial_motion=0;
+    for(i=1;i<5;i++){
+        uint16_t *pixels=(uint16_t*)(SLOT_CACHE_BASE+i*SLOT_CACHE_STRIDE);
+        memcpy(pixels,Slot_Fallback(1),104*112*2);
+        right[i]=pixels;
+        if(i<4)left[i+1]=pixels;
+    }
+    memcpy((void*)SLOT_CACHE_BASE,Slot_Fallback(1),104*112*2);
+    left[1]=(const uint16_t*)SLOT_CACHE_BASE;
+    Slot_DrawShelfCarts(right,128,0);
+    memcpy(saved,slot_fast_source,sizeof(saved));
+    Slot_DrawShelfCarts(left,128,0);
+    for(i=0;i<4;i++)CHECK(slot_fast_source[i]==(saved[i]==right[4]?left[1]:saved[i]));
+    Slot_DrawShelfCarts(right,128,0);
+    for(i=0;i<4;i++)CHECK(slot_fast_source[i]==saved[i]);
+    Slot_ResetCache();
+}
 static void streaming_tests(void)
 {
     const char *names[3]={"ORBIT RUNNER","MOON POST","PRISM QUEST"};
@@ -513,7 +535,7 @@ __declspec(dllexport) int main(int argc,char **argv)
     memory=VirtualAlloc((void*)SLOT_CACHE_BASE,0x30000,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);
     if(memory!=(void*)SLOT_CACHE_BASE){printf("Cannot map mock PSRAM\n");return 2;}
     slot_frame=(uint16_t*)pReadCache;f_mkdir("/SYSTEM");f_mkdir(SLOT_DIR);
-    config_tests();image_tests();scan_tests();username_tests();menu_tests();refinement_tests();streaming_tests();eject_tests();carousel_loop_tests();
+    config_tests();image_tests();scan_tests();username_tests();menu_tests();refinement_tests();draw_cache_tests();streaming_tests();eject_tests();carousel_loop_tests();
     printf("Frontend host integration: %u checks, %u failed\n",checks,failed);
     VirtualFree(memory,0,MEM_RELEASE);return failed?1:0;
 }

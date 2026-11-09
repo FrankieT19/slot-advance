@@ -203,24 +203,15 @@ static void Slot_PumpArt(void)
 }
 static void Slot_DrawShelf(int centre_index,int progress,int drop,unsigned ticks)
 {
-    int d,pass;
-    Slot_BeginShelf(slot_partial_motion && !drop,slot_partial_motion?(slot_platform==0?44:13):0,slot_partial_motion?(drop?160:(slot_platform==0?122:131)):160);
-    for(pass=0;pass<2;pass++) {
-    if(pass)Slot_BeginShelfPaint();
-    Slot_BeginFastFrame();
+    const uint16_t *sources[5]={0};
+    int d;
     for(d=-2;d<=2;d++) {
-        if(slot_count==1 && d!=0) continue;
-        int relative=d*256-progress;
-        int scale=Slot_CarouselScale(relative);
-        int centre=Slot_CarouselCentre(slot_platform,relative);
-        SlotCache *cache=Slot_GetCache(centre_index+d);
-        if(Slot_Normalize(centre_index+d)>=0 && (drop==0 || d==0)) {
-            int half=Slot_ScaledExtent(slot_widths[slot_platform],scale)/2;
-            if(centre+half>0 && centre-half<240)Slot_CartQ8(Slot_FastPixels(cache?Slot_CachedPixels(cache):Slot_Fallback(slot_platform),slot_platform),slot_platform,centre,scale,d==0?drop:0);
+        if((d==0 || (slot_count>1 && !drop)) && Slot_Normalize(centre_index+d)>=0) {
+            SlotCache *cache=Slot_GetCache(centre_index+d);
+            sources[d+2]=cache?Slot_CachedPixels(cache):Slot_Fallback(slot_platform);
         }
     }
-    }
-    Slot_EndShelf();
+    Slot_DrawShelfCarts(sources,progress,drop);
     if(!slot_partial_motion || drop)Slot_Chrome(slot_count,slot_index[slot_platform],drop?0:slot_title,ticks,
                 slot_scan_error?"SD read error: restart to retry":slot_warning?"512 game limit: more files exist":
                 slot_skipped?"Skipped long names: see guide":0);
