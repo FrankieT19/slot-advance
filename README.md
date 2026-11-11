@@ -24,9 +24,13 @@ Keep the supplied kernel filename: `ezkernel.bin` for Omega, `ezkernelnew.bin` f
 
 ## Artwork
 
-Scrape labels and choose cartridge colours with [slot. Cart Studio](https://studio.slot-cfw.fyi/). Then run the included **Label Converter.exe** on your PC, select your SD card and convert.
+1. Open [slot. Cart Studio](https://studio.slot-cfw.fyi/) in Chrome or Edge. Click **Get Started**, then **Choose SD Card**. Select the root of the card, where `Games` and `ezkernel.bin` (Omega) or `ezkernelnew.bin` (Omega DE) are located. Allow file editing if prompted.
+2. Let Cart Studio look up labels. Choose **Real Label** or **Logo Only** if prompted, and click any cart to change its label or shell colour.
+3. Click **Write to card**. Cart Studio converts the artwork for slot. advance and saves it to `SYSTEM/SLOT`.
 
-You can leave the SD card connected after Cart Studio, even when it tells you to eject it. Run the converter next.
+If you see **Download for slot. advance**, extract `labels.zip` and merge its `Labels` and `SYSTEM/SLOT` folders into the matching locations on your SD card.
+
+**Fallback.** If Cart Studio only exports labels, or you already have a `Labels` folder, put that folder at the root of the SD card. Leave the card connected, open the included **Label Converter.exe** on Windows, select the card, and click **Convert labels and shells**.
 
 ## Your name
 
