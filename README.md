@@ -27,10 +27,11 @@ Keep the supplied kernel filename: `ezkernel.bin` for Omega, `ezkernelnew.bin` f
 1. Open [slot. Cart Studio](https://studio.slot-cfw.fyi/) in Chrome or Edge. Click **Get Started**, then **Choose SD Card**. Select the root of the card, where `Games` and `ezkernel.bin` (Omega) or `ezkernelnew.bin` (Omega DE) are located. Allow file editing if prompted.
 2. Let Cart Studio look up labels. Choose **Real Label** or **Logo Only** if prompted, and click any cart to change its label or shell colour.
 3. Click **Write to card**. Cart Studio converts the artwork for slot. advance and saves it to `SYSTEM/SLOT`.
+4. Safely eject the SD Card and place it back into your flashcart.
 
-If you see **Download for slot. advance**, extract `labels.zip` and merge its `Labels` and `SYSTEM/SLOT` folders into the matching locations on your SD card.
+If you select **Download for slot. advance** instead, extract `labels.zip` and merge its `Labels` and `SYSTEM/SLOT` folders into the matching locations on your SD card.
 
-**Fallback.** If Cart Studio only exports labels, or you already have a `Labels` folder, put that folder at the root of the SD card. Leave the card connected, open the included **Label Converter.exe** on Windows, select the card, and click **Convert labels and shells**.
+**Fallback.** If Cart Studio doesn't detect slot. advance and gives you incompatible labels, leave the card connected, open the included **Label Converter.exe** on Windows, select the card, and click **Convert labels and shells**.
 
 ## Your name
 
