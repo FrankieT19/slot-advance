@@ -53,6 +53,16 @@ GBA Addon, GB and GBC games fade through black on return. GB/GBC games run witho
 
 To hide the footer clock, set **Settings → Show clock** to **Off**.
 
+## Showcase
+
+[Watch the v1.0 showcase on YouTube](https://www.youtube.com/watch?v=XQxO3N3EVzI).
+
+Since v1.0, slot. advance has added cartridge ejection with animation and sound when returning to the shelf, a redesigned GBA in-game menu, matching in-game shortcuts across GBA Addon, GB and GBC, and the option to hide the clock.
+
+## Discussion
+
+[Discuss slot. advance on GBAtemp](https://gbatemp.net/threads/slot-advance-a-modern-frontend-for-the-game-boy-advance.686336/).
+
 ## Credits
 
 slot. design by [Brandon Kowalski and contributors](https://github.com/slot-cfw/slot), with cartridge artwork by [Markus](https://github.com/MarkusMaribu). GBA port and DS Style by [frankiet19](https://github.com/FrankieT19), built on the EZ-FLASH kernels and SimpleLight.
