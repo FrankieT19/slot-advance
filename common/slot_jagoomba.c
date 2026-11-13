@@ -8,7 +8,7 @@ EWRAM_BSS volatile unsigned Slot_JagoombaVBlanks;
 EWRAM_BSS volatile unsigned Slot_JagoombaFadeRequested;
 static EWRAM_BSS volatile unsigned slot_fade_clock,slot_fade_level;
 static EWRAM_BSS SlotEmulatorControls slot_keys;
-static EWRAM_BSS unsigned slot_hold_enabled,slot_exit_requested;
+static EWRAM_BSS unsigned slot_hold_key,slot_menu_keys,slot_exit_requested;
 #ifdef SLOT_EMULATOR_TEST
 EWRAM_BSS SlotReturnRecord Slot_JagoombaTestRecord;
 EWRAM_BSS volatile unsigned Slot_JagoombaTestPage,Slot_JagoombaTestExit,Slot_JagoombaTestMenus;
@@ -45,14 +45,18 @@ static unsigned slot_read_context(SlotReturnRecord *record)
 void Slot_JagoombaInit(void)
 {
     SlotReturnRecord record;
-    slot_hold_enabled=slot_read_context(&record)?!!(record.options&SLOT_RETURN_HOLD_ENABLED):1;
+    unsigned options=slot_read_context(&record)?record.options:SLOT_RETURN_HOLD_ENABLED;
+    slot_hold_key=(options>>SLOT_RETURN_KEY_SHIFT)&SLOT_KEY_MASK;
+    slot_menu_keys=options>>SLOT_MENU_KEYS_SHIFT;
+    if(!slot_menu_keys){slot_hold_key=SLOT_DEFAULT_RETURN_KEY;slot_menu_keys=SLOT_DEFAULT_MENU_KEYS;}
+    if(!(options&SLOT_RETURN_HOLD_ENABLED))slot_hold_key=0;
     memset(&slot_keys,0,sizeof(slot_keys));slot_exit_requested=0;
     Slot_JagoombaVBlanks=0;main_ui_selection=-1;
     Slot_JagoombaFadeRequested=0;slot_fade_clock=0;slot_fade_level=0;
 }
 unsigned Slot_JagoombaInput(unsigned held)
 {
-    unsigned action=Slot_EmulatorKeys(&slot_keys,held,Slot_JagoombaVBlanks,slot_hold_enabled);
+    unsigned action=Slot_EmulatorKeys(&slot_keys,held,Slot_JagoombaVBlanks,slot_hold_key,slot_menu_keys);
     if(action==2)slot_exit_requested=1;
     return action;
 }
@@ -66,7 +70,7 @@ unsigned Slot_JagoombaTakeExit(void)
 }
 void Slot_JagoombaResume(void)
 {
-    memset(&slot_keys,0,sizeof(slot_keys));slot_keys.blocked=!!((~REG_P1)&12);
+    memset(&slot_keys,0,sizeof(slot_keys));slot_keys.blocked=!!((~REG_P1)&(slot_hold_key|slot_menu_keys));
 }
 void Slot_JagoombaFadeBlack(void)
 {

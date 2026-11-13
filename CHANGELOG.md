@@ -1,3 +1,7 @@
+# v1.2.3
+
+- Added **Settings → In-game hotkeys** to change the hold-to-return button and the two-button menu shortcut for GBA Addon, GB and GBC games. Defaults are **Select** and **Start + Select**.
+
 # v1.1
 
 - Reworked the GBA in-game menu with the DS Style font and a cleaner layout.

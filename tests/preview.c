@@ -226,7 +226,7 @@ int main(void)
             if(screen==3)shelf(indices[slot_platform],0,256);
             if(screen==4)Slot_Empty("/Games/GBA",0);
             if(screen==5)Slot_About();
-            if(screen==6)Slot_Help(help_page);
+            if(screen==6)Slot_Help(help_page,SLOT_DEFAULT_RETURN_KEY,SLOT_DEFAULT_MENU_KEYS);
             present();redraw=0;
         } else VBlankIntrWait();
     }

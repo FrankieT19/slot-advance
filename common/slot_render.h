@@ -7,6 +7,7 @@
 #include "slot_motion.h"
 #include "slot_version.h"
 #include "slot_username.h"
+#include "slot_hotkeys.h"
 #include "slot_assets.h"
 #ifdef __arm__
 #include <gba_base.h>
@@ -282,12 +283,12 @@ static void SLOT_FAST Slot_CartQ8(const uint16_t *pixels,unsigned platform,int c
 }
 static void Slot_Cart(const uint16_t *pixels,unsigned platform,int centre,int scale,int drop)
 {Slot_CartQ8(pixels,platform,centre,scale*256,drop);}
-static void Slot_Settings(const char *const *labels,const char *const *values,unsigned total,unsigned selected)
+static void Slot_SettingsPage(const char *title,const char *const *labels,const char *const *values,unsigned total,unsigned selected)
 {
     unsigned top=selected>4?selected-4:0,i; char row[48];
     Slot_Background();
     Slot_Rect(18,17,204,124,slot_theme==1?SLOT_RGB(54,54,59):SLOT_RGB(245,245,241));
-    Slot_Text("Settings",30,24,slot_theme==1?0x7fff:SLOT_RGB(43,41,39));
+    Slot_Text(title,30,24,slot_theme==1?0x7fff:SLOT_RGB(43,41,39));
     for(i=0;i<6 && top+i<total;i++) {
         unsigned n=top+i; int y=47+i*14;
         uint16_t ink=slot_theme==1?0x7fff:SLOT_RGB(43,41,39);
@@ -298,6 +299,8 @@ static void Slot_Settings(const char *const *labels,const char *const *values,un
     }
     Slot_Clock();
 }
+static void Slot_Settings(const char *const *labels,const char *const *values,unsigned total,unsigned selected)
+{Slot_SettingsPage("Settings",labels,values,total,selected);}
 static void Slot_About(void)
 {
     uint16_t ink=Slot_Ink();Slot_BlankShelf();
@@ -309,7 +312,14 @@ static void Slot_About(void)
     Slot_Centred("Built on DS Style",111,ink);
     Slot_Clock();
 }
-static void Slot_Help(unsigned page)
+static const char *Slot_KeyName(unsigned key)
+{
+    static const char *const names[]={"A","B","Select","Start","Right","Left","Up","Down","R","L"};
+    unsigned i=0;
+    while(key>1){key>>=1;i++;}
+    return names[i];
+}
+static void Slot_Help(unsigned page,unsigned hold,unsigned chord)
 {
     static const char *const menu[]={
         "Left/Right: choose game",
@@ -318,17 +328,19 @@ static void Slot_Help(unsigned page)
         "B: GBA boot options / back",
         "Settings: Up/Down to select",
         "A/Left/Right: change option"};
-    static const char *const ingame[]={
-        "GBA Addons and GB/GBC:",
-        "Hold Select 3s: return and eject",
-        "Start+Select: in-game menu",
-        "Cheats, save and load states",
-        "Select hold must be On.",
+    char hold_line[36],menu_line[36];
+    unsigned first=chord&-chord;
+    const char *const ingame[]={"GBA Addons and GB/GBC:",hold_line,menu_line,
+        "Enable Hold to return in Settings.",
         "Save states On enables save/load.",
         "GB/GBC: B resumes the game."};
     unsigned i;uint16_t ink=Slot_Ink();Slot_BlankShelf();
     Slot_Text(page?"Help 2/2 - In-game":"Help 1/2 - Menu",18,14,ink);
-    for(i=0;i<(page?7:6);i++)Slot_Text((page?ingame:menu)[i],18,34+i*13,ink);
+    if(page){
+        snprintf(hold_line,sizeof(hold_line),"Hold %s 3s: return and eject",Slot_KeyName(hold));
+        snprintf(menu_line,sizeof(menu_line),"%s+%s: in-game menu",Slot_KeyName(chord^first),Slot_KeyName(first));
+    }
+    for(i=0;i<6;i++)Slot_Text((page?ingame:menu)[i],18,34+i*13,ink);
     Slot_Text("Left/Right: pages   B: back",18,128,ink);
     Slot_Clock();
 }

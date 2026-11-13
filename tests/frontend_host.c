@@ -216,9 +216,12 @@ static void config_tests(void)
     char before[512],after[512],crlf[700];unsigned a,b,i,j;
     slot_theme=2;slot_platform=2;slot_index[0]=3;slot_index[1]=4;slot_index[2]=5;slot_addon=1;
     gl_reset_on=1;gl_rts_on=1;slot_config_dirty=1;
+    slot_return_key=512;slot_menu_keys=512|256;
     CHECK(Slot_SaveConfig());CHECK(!slot_config_dirty);
     slot_theme=0;slot_platform=0;slot_index[1]=0;gl_reset_on=0;
+    slot_return_key=4;slot_menu_keys=12;
     Slot_ReadConfig();CHECK(slot_theme==2);CHECK(slot_platform==2);CHECK(slot_index[1]==4);CHECK(gl_reset_on==1);
+    CHECK(slot_return_key==512 && slot_menu_keys==(512|256));
     a=read_file(SLOT_CONFIG,before,sizeof(before));CHECK(a>100);
     for(i=0,j=0;i<a;i++){if(before[i]=='\n')crlf[j++]='\r';crlf[j++]=before[i];}
     put_file(SLOT_CONFIG,crlf,j);slot_theme=0;Slot_ReadConfig();CHECK(slot_theme==2);
@@ -238,6 +241,14 @@ static void config_tests(void)
     put_file(SLOT_CONFIG,old_settings,sizeof(old_settings)-1);
     slot_clock_visible=0;slot_theme=2;Slot_ReadConfig();
     CHECK(slot_clock_visible && slot_theme==1 && slot_platform==2);
+    CHECK(slot_return_key==SLOT_DEFAULT_RETURN_KEY && slot_menu_keys==SLOT_DEFAULT_MENU_KEYS);
+    events(KEY_A,KEY_A,0,KEY_RIGHT,KEY_DOWN);
+    mock_keys[5]=KEY_RIGHT;mock_keys[6]=KEY_B;
+    Slot_HotkeysMenu();
+    CHECK(mock_event==7 && slot_return_key==KEY_START && slot_menu_keys==(KEY_START|KEY_RIGHT));
+    CHECK(Slot_ReturnOptionsValid(Slot_ReturnOptions(0,KEY_START,KEY_START|KEY_RIGHT)));
+    CHECK(!Slot_ReturnOptionsValid(Slot_ReturnOptions(1,KEY_START,KEY_START)));
+    CHECK(!Slot_MenuKeysValid(KEY_LEFT|KEY_RIGHT) && !Slot_MenuKeysValid(KEY_UP|KEY_DOWN));
     f_unlink(SLOT_CONFIG);f_unlink(SLOT_CONFIG_BAK);
     slot_theme=2;Slot_ReadConfig();CHECK(slot_theme==2);
 }
@@ -308,9 +319,11 @@ static void menu_tests(void)
     events(KEY_DOWN,KEY_A,KEY_B,0,0);Slot_SettingsMenu();
     CHECK(slot_skeuo==0);CHECK(mock_event==3);
     events(KEY_A,KEY_B,0,0,0);Slot_SettingsMenu();CHECK(slot_theme==1);
-    events(KEY_UP,KEY_UP,KEY_UP,KEY_A,KEY_B);Slot_SettingsMenu();CHECK(!slot_clock_visible);
+    events(KEY_UP,KEY_UP,KEY_UP,KEY_UP,KEY_A);mock_keys[5]=KEY_B;
+    Slot_SettingsMenu();CHECK(!slot_clock_visible);
     slot_clock_visible=1;Slot_ReadConfig();CHECK(!slot_clock_visible);
-    events(KEY_UP,KEY_UP,KEY_UP,KEY_A,KEY_B);Slot_SettingsMenu();CHECK(slot_clock_visible);
+    events(KEY_UP,KEY_UP,KEY_UP,KEY_UP,KEY_A);mock_keys[5]=KEY_B;
+    Slot_SettingsMenu();CHECK(slot_clock_visible);
     slot_platform=0;slot_count=1;slot_addon=0;
     events(KEY_RIGHT,KEY_B,0,0,0);Slot_CartBack();CHECK(slot_addon==1);
     slot_platform=1;slot_addon=0;

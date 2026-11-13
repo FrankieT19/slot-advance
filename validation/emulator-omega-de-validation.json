@@ -2,7 +2,7 @@
   "status": "pass",
   "target": "omega-de",
   "lcd_on": true,
-  "checks": 67,
+  "checks": 77,
   "results": [
     {
       "system": "GB",

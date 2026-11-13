@@ -1,16 +1,16 @@
 [
   {
     "target": "omega",
-    "bytes": 77632,
-    "sha256": "1b65f8fec188d65fce5d82d878a604871526aa1c03dc1e08438dbd37f73640dc",
+    "bytes": 77792,
+    "sha256": "7352a6cbbe12ec848b65eae8a4c7b29cba204f5b6d79ad0b6893f68d8a1e59d6",
     "iwram_headroom_bytes": 400,
     "upstream_commit": "2a77825e04b7fcef968c2e5f97cb238296a1ebb5",
     "test_shims": false
   },
   {
     "target": "omega-de",
-    "bytes": 77752,
-    "sha256": "4c3ccce1c63a587f366f9c3e191c01fcfb2960791cd077594b470ed053029555",
+    "bytes": 77912,
+    "sha256": "1880e1380aeb532d3cded35973ec2adc6bb3ebb898ee4b1f0dd82ce225eb24cc",
     "iwram_headroom_bytes": 280,
     "upstream_commit": "2a77825e04b7fcef968c2e5f97cb238296a1ebb5",
     "test_shims": false

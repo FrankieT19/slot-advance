@@ -29,8 +29,9 @@ CONTROLS
 Left/Right: choose game. L/R: change system. A: play. Start: settings.
 Open Settings > Help for all controls and GBA Addon shortcuts.
 Set Show clock to Off in Settings to hide the footer clock.
-In GBA Addon and GB/GBC games, hold Select for 3 seconds to return and eject.
-Start+Select opens the in-game menu.
+By default, hold Select for 3 seconds to return and eject from GBA Addon and
+GB/GBC games. Start+Select opens the in-game menu. Change both shortcuts in
+Settings > In-game hotkeys.
 GBA Addon and GB/GBC fade through black when returning.
 GB/GBC run without SGB borders.
 

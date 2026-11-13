@@ -14513,7 +14513,7 @@ load_file:
 				/* Slot Omega retains the active rts option from SETTINGS.TXT. */
 				/* Slot Omega retains the active sleep option from SETTINGS.TXT. */
 				/* Slot Omega retains the active cheat option from SETTINGS.TXT. */
-				if((gl_reset_on==1) || (gl_rts_on==1) || (gl_sleep_on==1) || (gl_cheat_on==1))
+				if(Slot_AddonMenuEnabled() || (gl_reset_on==1) || (gl_rts_on==1) || (gl_sleep_on==1) || (gl_cheat_on==1))
 				{
 					if(gl_rts_on==1)
 					{
@@ -14609,7 +14609,7 @@ load_file:
 
 				f_chdir(currentpath);//return to game folder
 				u32 needpatch = 0;
-				if((gl_reset_on==1) || (gl_rts_on==1) || (gl_sleep_on==1) || (gl_cheat_on==1))
+				if(Slot_AddonMenuEnabled() || (gl_reset_on==1) || (gl_rts_on==1) || (gl_sleep_on==1) || (gl_cheat_on==1))
 		{
 			Patch_SpecialROM_sleepmode();//
 

@@ -32,6 +32,7 @@ static void Slot_CancelArt(void)
 {if(slot_art_active){f_close(&slot_art_file);slot_art_active=0;}}
 static unsigned slot_index[3],slot_counts[3];
 static unsigned slot_animations=1,slot_wrap=1,slot_remember=1,slot_addon=1;
+static unsigned slot_return_key=SLOT_DEFAULT_RETURN_KEY,slot_menu_keys=SLOT_DEFAULT_MENU_KEYS;
 static unsigned slot_last_platform=0,slot_config_dirty=0,slot_warning=0;
 static unsigned slot_skipped=0,slot_scan_error=0;
 static char slot_library[3][MAX_path_len] EWRAM_BSS;
@@ -234,10 +235,12 @@ static void Slot_ConfigSet(const char *name,unsigned value)
     else if(!strcmp(name,"GB") && value<MAX_files) slot_index[1]=value;
     else if(!strcmp(name,"GBC") && value<MAX_files) slot_index[2]=value;
     else if(!strcmp(name,"Clock") && value<2) slot_clock_visible=value;
+    else if(!strcmp(name,"ReturnKey"))slot_return_key=value;
+    else if(!strcmp(name,"MenuKeys"))slot_menu_keys=value;
 }
-static const char *const slot_config_keys[]={"Theme","Animations","Wrap","Sounds","Remember","Addons","Reset","States","Sleep","Platform","GBA","GB","GBC","Skeuomorphic","Clock"};
+static const char *const slot_config_keys[]={"Theme","Animations","Wrap","Sounds","Remember","Addons","Reset","States","Sleep","Platform","GBA","GB","GBC","Skeuomorphic","Clock","ReturnKey","MenuKeys"};
 enum { SLOT_CONFIG_KEY_COUNT=sizeof(slot_config_keys)/sizeof(*slot_config_keys),
-       SLOT_CONFIG_CLOCK_BIT=1u<<(SLOT_CONFIG_KEY_COUNT-1) };
+       SLOT_CONFIG_RETURN_KEY=15,SLOT_CONFIG_MENU_KEYS=16,SLOT_CONFIG_REQUIRED_MASK=(1u<<14)-1 };
 static int Slot_ConfigKey(const char *name)
 {
     unsigned i; for(i=0;i<SLOT_CONFIG_KEY_COUNT;i++) if(!strcmp(name,slot_config_keys[i])) return (int)i;
@@ -260,18 +263,21 @@ static unsigned Slot_ReadConfigFile(const char *path)
         *equals++=0; k=Slot_ConfigKey(slot_line);
         if(k>=0) {
             unsigned limit=k==0 || k==9?3:k>=10 && k<=12?MAX_files:2;
-            if(!Slot_ParseNatural(equals,&value) || value>=limit) { valid=0; break; }
+            if(!Slot_ParseNatural(equals,&value) ||
+               (k==SLOT_CONFIG_RETURN_KEY?!Slot_SingleKey(value):
+                k==SLOT_CONFIG_MENU_KEYS?!Slot_MenuKeysValid(value):value>=limit)) { valid=0; break; }
             seen|=1u<<k;pending[k]=value;
         } else if(!strcmp(slot_line,"End")) {
             if(!Slot_ParseNatural(equals,&value) || value!=1) valid=0;
             ended=1;
         }
     }
-    /* Existing settings files have no Clock entry and keep the clock visible. */
-    if(f_error(&gfile) || !ended || (seen&~SLOT_CONFIG_CLOCK_BIT)!=(version<3?8191:16383)) valid=0;
+    /* Clock and hotkeys are optional in existing settings snapshots. */
+    if(f_error(&gfile) || !ended || (seen&SLOT_CONFIG_REQUIRED_MASK)!=(version<3?8191:16383)) valid=0;
     if(f_close(&gfile)!=FR_OK) valid=0;
     if(valid) {
         slot_clock_visible=1;
+        slot_return_key=SLOT_DEFAULT_RETURN_KEY;slot_menu_keys=SLOT_DEFAULT_MENU_KEYS;
         for(i=0;i<SLOT_CONFIG_KEY_COUNT;i++)if(seen&(1u<<i))Slot_ConfigSet(slot_config_keys[i],pending[i]);
         if(version<3){slot_skeuo=1;slot_config_dirty=1;}
         if(legacy){slot_addon=1;gl_reset_on=1;slot_config_dirty=1;}
@@ -290,9 +296,10 @@ static unsigned Slot_SaveConfig(void)
     if(!slot_config_dirty) return 1;
     f_mkdir("/SYSTEM"); f_mkdir(SLOT_DIR);
     length=snprintf(slot_line,sizeof(slot_line),
-        "SlotOmega=3\nTheme=%u\nAnimations=%u\nWrap=%u\nSounds=%u\nRemember=%u\nAddons=%u\nReset=%u\nStates=%u\nSleep=%u\nPlatform=%u\nGBA=%u\nGB=%u\nGBC=%u\nSkeuomorphic=%u\nClock=%u\nEnd=1\n",
+        "SlotOmega=3\nTheme=%u\nAnimations=%u\nWrap=%u\nSounds=%u\nRemember=%u\nAddons=%u\nReset=%u\nStates=%u\nSleep=%u\nPlatform=%u\nGBA=%u\nGB=%u\nGBC=%u\nSkeuomorphic=%u\nClock=%u\nReturnKey=%u\nMenuKeys=%u\nEnd=1\n",
         slot_theme,slot_animations,slot_wrap,launcher_sounds_enabled,slot_remember,slot_addon,
-        gl_reset_on,gl_rts_on,gl_sleep_on,slot_platform,slot_index[0],slot_index[1],slot_index[2],slot_skeuo,slot_clock_visible);
+        gl_reset_on,gl_rts_on,gl_sleep_on,slot_platform,slot_index[0],slot_index[1],slot_index[2],slot_skeuo,slot_clock_visible,
+        slot_return_key,slot_menu_keys);
     if(length>=sizeof(slot_line) || f_open(&gfile,SLOT_CONFIG_TMP,FA_CREATE_ALWAYS|FA_WRITE)!=FR_OK) return 0;
     result=f_write(&gfile,slot_line,length,&written);
     if(f_close(&gfile)!=FR_OK || result!=FR_OK || written!=length) return 0;
@@ -395,9 +402,10 @@ static void Slot_Play(void)
         Slot_DrawShelf(slot_index[slot_platform],0,256,0);Slot_Present();
         Launcher_BeginLaunchScreen();
     }
-    Slot_ArmReturn(pFilename_buffer[slot_index[slot_platform]].filename,slot_platform,gl_reset_on?SLOT_RETURN_HOLD_ENABLED:0);
+    Slot_ArmReturn(pFilename_buffer[slot_index[slot_platform]].filename,slot_platform,
+                   Slot_ReturnOptions(gl_reset_on,slot_return_key,slot_menu_keys));
 #ifdef __arm__
-    Slot_SetAddonTheme(slot_theme);
+    Slot_SetAddonOptions(slot_theme,slot_return_key,slot_menu_keys);
 #endif
     /* Stock DS Style copies the chosen filename into EWRAM before game loading
        overwrites PSRAM. Keep its save, patch, emulator and hardware boot paths. */
@@ -438,15 +446,47 @@ static void Slot_ShowHelp(void)
     unsigned armed=0,page=0,dirty=1;
     while(1) {
         unsigned down;
-        if(dirty){Slot_Help(page);Slot_Present();dirty=0;}
+        if(dirty){Slot_Help(page,slot_return_key,slot_menu_keys);Slot_Present();dirty=0;}
         VBlankIntrWait();UIAudio_Update();scanKeys();down=keysDown();
         if(Slot_DialogCanClose(&armed,keysHeld(),down))return;
         if(armed && (down&(KEY_LEFT|KEY_RIGHT))){page^=1;dirty=1;}
     }
 }
+static void Slot_HotkeysMenu(void)
+{
+    static const char *const labels[]={"Return button","Menu button 1","Menu button 2"};
+    unsigned keys[]={slot_return_key,slot_menu_keys&-slot_menu_keys,0};
+    unsigned armed=0,selected=0,dirty=1;
+    keys[2]=slot_menu_keys^keys[1];
+    while(1) {
+        unsigned down,repeat;
+        if(dirty) {
+            const char *values[]={Slot_KeyName(keys[0]),Slot_KeyName(keys[1]),Slot_KeyName(keys[2])};
+            Slot_SettingsPage("In-game hotkeys",labels,values,3,selected);
+            Slot_Text("Left/Right: change   B: back",31,117,slot_theme==1?0x7fff:SLOT_RGB(43,41,39));
+            Slot_Present();dirty=0;
+        }
+        VBlankIntrWait();UIAudio_Update();scanKeys();
+        if(!armed){armed=!keysHeld();continue;}
+        down=keysDown();repeat=keysDownRepeat()|down;
+        if(down&KEY_B)return;
+        if(repeat&KEY_UP){selected=(selected+2)%3;dirty=1;}
+        if(repeat&KEY_DOWN){selected=(selected+1)%3;dirty=1;}
+        if(repeat&(KEY_LEFT|KEY_RIGHT)){
+            unsigned key=keys[selected],other=selected?keys[3-selected]:0;
+            do{
+                if(repeat&KEY_LEFT)key=key==1?512:key>>1;
+                else key=key==512?1:key<<1;
+            }while(other && !Slot_MenuKeysValid(key|other));
+            keys[selected]=key;
+            slot_return_key=keys[0];slot_menu_keys=keys[1]|keys[2];
+            slot_config_dirty=1;dirty=1;
+        }
+    }
+}
 static void Slot_SettingsMenu(void)
 {
-    static const char *const labels[]={"Appearance","Skeuomorphic","Animation","Wrap carousel","UI sounds","Boot mode","Select hold","Save states","Sleep patch","Remember shelf","Show clock","Help","About"};
+    static const char *const labels[]={"Appearance","Skeuomorphic","Animation","Wrap carousel","UI sounds","Boot mode","Hold to return","Save states","Sleep patch","Remember shelf","Show clock","In-game hotkeys","Help","About"};
     enum { total=sizeof(labels)/sizeof(*labels) };
     const char *values[total];unsigned selected=0,dirty=1;
     Slot_ClearNav();
@@ -457,7 +497,7 @@ static void Slot_SettingsMenu(void)
             values[1]=slot_skeuo?"On":"Off";values[2]=slot_animations?"On":"Off";values[3]=slot_wrap?"On":"Off";
             values[4]=launcher_sounds_enabled?"On":"Off";values[5]=slot_addon?"Addons":"Clean";
             values[6]=gl_reset_on?"On":"Off";values[7]=gl_rts_on?"On":"Off";values[8]=gl_sleep_on?"On":"Off";
-            values[9]=slot_remember?"On":"Off";values[10]=slot_clock_visible?"On":"Off";values[11]="";values[12]="";
+            values[9]=slot_remember?"On":"Off";values[10]=slot_clock_visible?"On":"Off";values[11]=">";values[12]="";values[13]="";
             Slot_Settings(labels,values,total,selected);Slot_Present();dirty=0;
         }
         VBlankIntrWait();UIAudio_Update();scanKeys();down=keysDown();repeat=keysDownRepeat()|down;
@@ -477,8 +517,9 @@ static void Slot_SettingsMenu(void)
                 case 6:gl_reset_on^=1;break;case 7:gl_rts_on^=1;break;case 8:gl_sleep_on^=1;break;
                 case 9:slot_remember^=1;break;
                 case 10:slot_clock_visible^=1;break;
-                case 11:Slot_ShowHelp();break;
-                case 12:Slot_ShowAbout();break;
+                case 11:Slot_HotkeysMenu();break;
+                case 12:Slot_ShowHelp();break;
+                case 13:Slot_ShowAbout();break;
             }
         }
     }

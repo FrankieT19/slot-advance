@@ -13,6 +13,7 @@
 #include "lang.h"
 #include "showcht.h"
 #include "Ezcard_OP.h"
+#include "slot_hotkeys.h"
 
 
 
@@ -294,7 +295,7 @@ void SetTrimSize(u8* buffer,u32 romsize,u32 iSize,u32 mode,BYTE saveMODE)
 
 	u32  PATCH_LENGTH;
 
-	if((gl_rts_on==1) || (gl_reset_on==1))
+	if(Slot_AddonMenuEnabled() || (gl_rts_on==1) || (gl_reset_on==1))
 	{
 		PATCH_LENGTH = 0x2000; /* Full Slot hold-reset/menu wrapper. */
 	}
@@ -442,8 +443,16 @@ void Patch_Reset_Sleep(u32 *Data)
 	Write(iTrimSize, patchbuffer, p_patch_end-p_patch_start);
 }
 //------------------------------------------------------------------
-static unsigned slot_patch_theme;
-void Slot_SetAddonTheme(unsigned theme){slot_patch_theme=theme;}
+static unsigned slot_patch_theme,slot_patch_hold=SLOT_DEFAULT_RETURN_KEY,slot_patch_menu=SLOT_DEFAULT_MENU_KEYS;
+static unsigned slot_addon_menu;
+void Slot_SetAddonOptions(unsigned theme,unsigned hold,unsigned menu)
+{
+    slot_patch_theme=theme;
+    slot_patch_hold=hold;
+    slot_patch_menu=menu;
+    slot_addon_menu=1;
+}
+unsigned Slot_AddonMenuEnabled(void){return slot_addon_menu;}
 void Patch_RTS_Cheat(u32 *Data)
 {
 	Patch_B_address();
@@ -475,8 +484,8 @@ void Patch_RTS_Cheat(u32 *Data)
   u32 RTS_Reset_key_offset = (u8*)RTS_Reset_key - p_patch_start;
  	u32 RTS_Sleep_key_offset = (u8*)RTS_Sleep_key - p_patch_start;
 
-  *(vu32*)(patchbuffer+RTS_Reset_key_offset) = 0x3F3; /* Start + Select. */
-    *(vu32*)(patchbuffer+((u8*)Slot_RTS_HoldEnabled-p_patch_start)) = gl_reset_on;
+  *(vu32*)(patchbuffer+RTS_Reset_key_offset) = slot_patch_menu;
+    *(vu32*)(patchbuffer+((u8*)Slot_RTS_HoldKey-p_patch_start)) = gl_reset_on?slot_patch_hold:0;
     *(vu32*)(patchbuffer+((u8*)Slot_RTS_Background-p_patch_start)) = slot_patch_theme==1?0:slot_patch_theme==2?0x7bff:0x0c84;
     *(vu32*)(patchbuffer+((u8*)Slot_RTS_Panel-p_patch_start)) = slot_patch_theme==1?0x1cc6:0x7bde;
     *(vu32*)(patchbuffer+((u8*)Slot_RTS_Ink-p_patch_start)) = slot_patch_theme==1?0x7fff:0x10a5;
@@ -638,7 +647,7 @@ void GBApatch_PSRAM(u32* address,int filesize)//Only once
 		spend_address = Get_spend_address(address);
 		Patch_RTS_only(address);
 	}
-	else if((gl_rts_on==1) || (gl_reset_on==1) ||  ((gl_cheat_on==1)&& (gl_cheat_count>0) ) )
+	else if(Slot_AddonMenuEnabled() || (gl_rts_on==1) || (gl_reset_on==1) ||  ((gl_cheat_on==1)&& (gl_cheat_count>0) ) )
 	{
 		spend_address = Get_spend_address(address);
 		//DEBUG_printf("spend_address =%x",spend_address);
@@ -686,7 +695,7 @@ void GBApatch_NOR(u32* address,int filesize,u32 offset)
 	if( 0 && (gl_rts_on==1) && (gl_cheat_on == 0)  && (gl_reset_on == 0)  && (gl_sleep_on == 0)  ) {
 		Patch_RTS_only(address);
 	}
-	else if((gl_rts_on==1) || (gl_reset_on==1) ||  ((gl_cheat_on==1)&& (gl_cheat_count>0) ) )
+	else if(Slot_AddonMenuEnabled() || (gl_rts_on==1) || (gl_reset_on==1) ||  ((gl_cheat_on==1)&& (gl_cheat_count>0) ) )
 	{
 		Patch_RTS_Cheat(address);
 	}
@@ -756,7 +765,7 @@ u32 Check_pat(TCHAR* gamefilename)
 
 	TCHAR patnamebuf[100];
 	make_pat_name(patnamebuf,gamefilename);
-	res=f_chdir("/SYSTEM/PATCH/SLOT113");
+	res=f_chdir("/SYSTEM/PATCH/SLOT123");
 	if(res == FR_OK)
 	{
 		res = f_open(&gfile,patnamebuf, FA_READ);
@@ -804,8 +813,8 @@ void Make_pat_file(TCHAR* gamefilename)
 	u32 w_buffer[16];
 
 	res = f_mkdir("/SYSTEM/PATCH");
-    f_mkdir("/SYSTEM/PATCH/SLOT113");
-	res=f_chdir("/SYSTEM/PATCH/SLOT113");
+    f_mkdir("/SYSTEM/PATCH/SLOT123");
+	res=f_chdir("/SYSTEM/PATCH/SLOT123");
 
 	memset(w_buffer, 0x00, sizeof(w_buffer));
 

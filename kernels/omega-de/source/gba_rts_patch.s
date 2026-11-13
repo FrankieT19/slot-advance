@@ -4,7 +4,7 @@
 
 	.include "slot_hold_reset.inc"
 	.include "slot_return_mark.inc"
-	.global Slot_RTS_HoldEnabled
+	.global Slot_RTS_HoldKey
 	.global Slot_RTS_Background,Slot_RTS_Panel,Slot_RTS_Ink
 	.global Slot_MenuFont,Slot_MarkReturn
 	.global ingamemenu_now
@@ -117,15 +117,17 @@ RTS_irq:
 	bic 		r2,r2,#0xFF000000
 	bic 		r2,r2,#0x00FF0000
 
-	SLOT_HOLD_TICK spend_0x80, Slot_RTS_HoldEnabled, reset_now
+	SLOT_HOLD_TICK spend_0x80, Slot_RTS_HoldKey, RTS_Reset_key, reset_now
 	@;check ingamemenu
 	adr 		r3,RTS_Reset_key
 	ldr 		r3,[r3]
-	cmp 		r2,r3
+	tst 		r2,r3
 	bne			check_sleep
 	@;----------------------
 	adrl		r12, spend_0x80
 	ldr			r12,[r12]
+	mov			r3,#0
+	str			r3,[r12,#0x7c]
 	stmia		r12!,{r4-r11,sp,lr} @;0x0
 	mrs	 		r2,SPSR
 	stmia		r12!,{r2}       @;0x4
@@ -133,6 +135,7 @@ RTS_irq:
 	stmfd   SP!, {LR}  			@;0x4000000,
 	bl 			ingamemenu_now
 	ldmfd   SP!, {LR}
+	b check_cheat
 	@;----------------------
 	@;check sleep
 check_sleep:
@@ -141,6 +144,7 @@ check_sleep:
 	cmp 		r2,r3
 	beq 		sleep_now
 
+check_cheat:
 	@;check cheat
 	adrl 		r2,CheatONOFF
 	ldr 		r2,[r2]
@@ -165,12 +169,12 @@ nocheat:
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	.include "slot_gba_return.inc"
-Slot_RTS_HoldEnabled:
-	.word 1
+Slot_RTS_HoldKey:
+	.word 4 @; Select
 RTS_Sleep_key:
 	.word 0xFB @;L+R+select
 RTS_Reset_key:
-	.word 0xF7 @;L+R+Start
+	.word 12 @; Start + Select, active high
 @;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 Slot_MarkReturn:
 	stmfd sp!,{r4-r6,lr}
@@ -512,6 +516,12 @@ loopbak:
     ldr r0,[r0]
     mvn r1,#0
     str r1,[r0,#0x2c] @ Previous selection; unused gap before saved system SP.
+    ldr r0,=0x4000130
+    ldr r1,=0x3ff
+slot_menu_release:
+    ldrh r2,[r0]
+    cmp r2,r1
+    bne slot_menu_release
 begin_show:
     bl Slot_MenuVBlank
     adrl r7,Cheat_count

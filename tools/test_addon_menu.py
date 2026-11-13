@@ -124,6 +124,19 @@ def main():
     e.keys={2};e.run(174)
     check_fade('Select hold with window and HBlank DMA',True)
     e.close()
+    e=Emulator(a.core);e.load(rom);e.run(180)
+    command(7);e.run(10)
+    before=e.frame.tobytes();press(2);assert e.frame.tobytes()==before;checks+=1
+    e.keys={10,11};e.run(8);assert e.frame.tobytes()!=before;checks+=1
+    e.keys=set();e.run(8);press(0);assert e.frame.tobytes()==before;checks+=1
+    e.keys={10};e.run(200);assert e.frame.tobytes()==before;checks+=1
+    e.close()
+    e=Emulator(a.core);e.load(rom);e.run(180)
+    command(6)
+    e.keys={2};e.run(200);assert result(9)==0;checks+=1
+    e.keys={10};e.run(174)
+    check_fade('Rebound L hold',True)
+    e.close()
     report={'status':'pass','checks':checks,'failed':0,'scope':'Actual addon assembly in mGBA with emulated SRAM banks: menu glyphs, dirty rows, disabled states, resume, cheats, warm/cold markers and frame capture of both return fades. Select-hold runs through the real IRQ path with a display window and HBlank DMA active. Cartridge mapper/reset/SD timing and save states still require hardware.'}
     (ROOT/'validation/addon-menu-validation.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
     print(json.dumps(report,indent=2))

@@ -125,7 +125,7 @@ def main():
         check(not value('Slot_JagoombaTestExit'),'cold boot does not request another exit')
         check(byte('auto_border')==0,'borders remain disabled after restart without saving settings')
         # Disabled hold still permits the menu and manual Exit.
-        set_value('slot_hold_enabled',0);press([2],220)
+        set_value('slot_hold_key',0);press([2],220)
         check(not value('Slot_JagoombaTestExit'),'Select hold setting respected')
         press([2,3]);check(value('Slot_JagoombaTestMenus')==1,'menu works with hold disabled')
         arm();set_value('Slot_JagoombaTestFadeLine',80);press([4])
@@ -143,6 +143,13 @@ def main():
         press([2,3]);press([4]);press([4]);press([8],after=100)
         check(not value('Slot_JagoombaTestExit'),'Restart does not return or eject')
         check(counter()==4,'Restart restarts the GB ROM')
+        set_value('slot_menu_keys',0x300);set_value('slot_hold_key',0x200)
+        menus=value('Slot_JagoombaTestMenus')
+        press([2,3]);check(value('Slot_JagoombaTestMenus')==menus,'old chord no longer opens menu')
+        press([10,11]);check(value('Slot_JagoombaTestMenus')==menus+1,'rebound L+R opens menu')
+        press([0]);check(value('main_ui_selection')==0xffffffff,'rebound menu resumes normally')
+        press([2],200);check(not value('Slot_JagoombaTestExit'),'old hold button no longer exits')
+        arm();press([10],220);check(value('Slot_JagoombaTestExit')==1,'rebound L hold saves and exits')
         results.append({'system':'GBC' if color else 'GB','save_roundtrip':True,'hold_exit':True,'menu_exit':True,'cold_boot':True,'restart_stays_in_emulator':True,'sgb_borders_disabled':True,'black_exit_fade':True,'fade_entry_scanline':80,'fade_entry_dma_active':True,'fade_luminance':fade_luminance,'menu_fade_luminance':menu_fade_luminance,'white_striped_frames':striped_frames})
         e.close()
     report={'status':'pass','target':a.target,'lcd_on':not a.lcd_off,'checks':total,'results':results,'scope':'Full modified emulator with homebrew GB/GBC ROMs: actual CPU, VBlank clock, menu, raster DMA, fade frames and battery SRAM handling. Fade starts at scanline 80 with DMA enabled. Cartridge SRAM banking and the final kernel/FPGA reboot use test shims and still require physical testing.'}

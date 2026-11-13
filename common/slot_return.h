@@ -3,6 +3,7 @@
 #ifndef SLOT_RETURN_H
 #define SLOT_RETURN_H
 #include <stdint.h>
+#include "slot_hotkeys.h"
 #define SLOT_RETURN_PAGE 0x30
 #define SLOT_RETURN_ADDRESS 0x0e00ff00
 #define SLOT_RETURN_MAGIC 0x52544c53u
@@ -10,12 +11,24 @@
 #define SLOT_RETURN_COOKIE_ADDRESS 0x0203fff0
 #define SLOT_RETURN_COOKIE_MAGIC 0x53574a45u
 #define SLOT_RETURN_HOLD_ENABLED 1u
+#define SLOT_RETURN_KEY_SHIFT 1
+#define SLOT_MENU_KEYS_SHIFT 11
 typedef struct {
     uint32_t magic,checksum,requested,requested_inverse,platform;
     char filename[100];
     uint32_t options,reserved;
 } SlotReturnRecord;
 _Static_assert(sizeof(SlotReturnRecord)==128,"Return record ABI");
+static inline unsigned Slot_ReturnOptions(unsigned enabled,unsigned hold,unsigned menu)
+{
+    return (enabled?SLOT_RETURN_HOLD_ENABLED:0)|(hold<<SLOT_RETURN_KEY_SHIFT)|(menu<<SLOT_MENU_KEYS_SHIFT);
+}
+static inline unsigned Slot_ReturnOptionsValid(unsigned options)
+{
+    if(options<=SLOT_RETURN_HOLD_ENABLED)return 1; /* Records from earlier kernels. */
+    return Slot_SingleKey((options>>SLOT_RETURN_KEY_SHIFT)&SLOT_KEY_MASK) &&
+           Slot_MenuKeysValid(options>>SLOT_MENU_KEYS_SHIFT);
+}
 static uint32_t Slot_ReturnChecksum(const SlotReturnRecord *record)
 {
     uint32_t hash=2166136261u;unsigned i;
@@ -28,7 +41,7 @@ static unsigned Slot_ReturnValid(const SlotReturnRecord *record)
 {
     unsigned i;
     if(record->magic!=SLOT_RETURN_MAGIC || record->platform>=3 ||
-       (record->options&~SLOT_RETURN_HOLD_ENABLED) || record->reserved ||
+       !Slot_ReturnOptionsValid(record->options) || record->reserved ||
        record->requested!=SLOT_RETURN_REQUEST || record->requested_inverse!=~SLOT_RETURN_REQUEST ||
        !record->filename[0] || record->filename[99] || record->checksum!=Slot_ReturnChecksum(record))return 0;
     for(i=0;record->filename[i];i++)if(record->filename[i]=='/' || record->filename[i]=='\\' ||

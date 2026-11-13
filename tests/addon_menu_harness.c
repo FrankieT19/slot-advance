@@ -5,6 +5,7 @@
 #include "slot_return.h"
 extern void ingamemenu_now(void),Slot_MarkReturn(void),Slot_TestIrq(void);
 extern unsigned RTS_Reset_key;
+extern unsigned Slot_RTS_HoldKey;
 extern unsigned Slot_RTS_Background,Slot_RTS_Panel,Slot_RTS_Ink,RTS_switch,Cheat_count;
 #define RESULT ((volatile unsigned*)0x0203f000)
 #define SRAM30 ((SlotReturnRecord*)0x0202ff00)
@@ -29,7 +30,7 @@ static void prepare_hold_return(void)
     REG_DMA0SAD=(uintptr_t)&raster_blend;
     REG_DMA0DAD=(uintptr_t)&REG_BLDY;
     REG_DMA0CNT=DMA_ENABLE|DMA_HBLANK|DMA_REPEAT|DMA_SRC_FIXED|DMA_DST_FIXED|1;
-    RTS_Reset_key=0x3f3;
+    RTS_Reset_key=SLOT_DEFAULT_MENU_KEYS;
     REG_IME=0;
     *(volatile unsigned*)0x03007ff4=*(volatile unsigned*)0x03007ffc;
     *(volatile uintptr_t*)0x03007ffc=(uintptr_t)Slot_TestIrq;
@@ -97,11 +98,15 @@ int main(void)
             if(command==1){Slot_RTS_Background=0;Slot_RTS_Panel=0x1cc6;Slot_RTS_Ink=0x7fff;Cheat_count=0;}
             if(command==2){Slot_RTS_Background=0x7bff;Slot_RTS_Panel=0x7bde;Slot_RTS_Ink=0x10a5;Cheat_count=0;}
             if(command==3){Cheat_count=1;*(volatile unsigned*)0x03007fe0=0;}
-            if(command==4 || command==5)arm_return();
-            if(command==4)prepare_hold_return();
+            if(command>=4)arm_return();
+            if(command==4 || command==6 || command==7)prepare_hold_return();
+            if(command==6 || command==7){
+                RTS_Reset_key=KEY_L|KEY_R;
+                Slot_RTS_HoldKey=command==6?KEY_L:0;
+            }
             RESULT[17]=command;
         }
-        if((keysDown()&(KEY_START|KEY_SELECT)) && (keysHeld()&(KEY_START|KEY_SELECT))==(KEY_START|KEY_SELECT)){
+        if(RESULT[17]<6 && (keysDown()&(KEY_START|KEY_SELECT)) && (keysHeld()&(KEY_START|KEY_SELECT))==(KEY_START|KEY_SELECT)){
             RESULT[2]=1;ingamemenu_now();RESULT[2]=0;RESULT[3]=checksum_video();
             RESULT[6]=*(volatile uint16_t*)0x04000050;RESULT[7]=*(volatile unsigned*)0x03007fe0;
             RESULT[8]++;scanKeys();

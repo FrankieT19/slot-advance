@@ -1,7 +1,7 @@
 /* Count VBlank ticks only, in the scratch area DS Style already reserves for
    its addon wrapper. Never write a counter into game ROM or steal a timer.
    r1: IE/IF snapshot, r2: active-low keys, r0: IO base. r0/r2 are preserved. */
-.macro SLOT_HOLD_TICK scratch, enabled, reset_target
+.macro SLOT_HOLD_TICK scratch, hold_key, menu_keys, reset_target
     tst r1,#1
     beq .Lhold_exit\@
     tst r1,#0x10000
@@ -9,13 +9,15 @@
     stmfd sp!,{r1}
     adrl r12,\scratch
     ldr r12,[r12]
-    adrl r3,\enabled
+    adrl r3,\hold_key
     ldr r3,[r3]
     cmp r3,#0
     beq .Lhold_clear\@
-    tst r2,#4
+    tst r2,r3
     bne .Lhold_clear\@
-    tst r2,#8
+    adrl r3,\menu_keys
+    ldr r3,[r3]
+    tst r2,r3
     beq .Lhold_clear\@
     ldr r3,[r12,#0x7c]
     mov r1,r3,lsr #16

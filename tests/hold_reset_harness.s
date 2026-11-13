@@ -13,7 +13,7 @@ Slot_TestHoldStep:
     mov r4,r1
     mov r2,r0
     mov r0,#0x04000000
-    SLOT_HOLD_TICK Slot_TestScratch,Slot_TestEnabled,Slot_TestReset
+    SLOT_HOLD_TICK Slot_TestScratch,Slot_TestEnabled,Slot_TestMenu,Slot_TestReset
     cmp r1,r4
     moveq r0,#0
     movne r0,#2
@@ -30,7 +30,7 @@ Slot_TestHoldDisabled:
     mov r4,r1
     mov r2,r0
     mov r0,#0x04000000
-    SLOT_HOLD_TICK Slot_TestScratch,Slot_TestDisabled,Slot_TestReset
+    SLOT_HOLD_TICK Slot_TestScratch,Slot_TestDisabled,Slot_TestMenu,Slot_TestReset
     cmp r1,r4
     moveq r0,#0
     movne r0,#2
@@ -43,7 +43,8 @@ Slot_TestHoldClear:
     str r0,[r1,#0x7c]
     bx lr
 Slot_TestScratch: .word 0x0203ee00
-Slot_TestEnabled: .word 1
+Slot_TestEnabled: .word 4
+Slot_TestMenu: .word 12
 Slot_TestDisabled: .word 0
 
 
