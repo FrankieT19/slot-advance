@@ -184,9 +184,30 @@ static void Launcher_StoreFileRecord(unsigned index,const char *name,unsigned si
 static int filecmp(const void *a,const void *b) { return _stricmp(((const FM_FILE_FS*)a)->filename,((const FM_FILE_FS*)b)->filename); }
 static void Sort_file(unsigned count) { qsort(pFilename_buffer,count,sizeof(FM_FILE_FS),filecmp); }
 #define UNBCD(x) (((x)&15)+(((x)>>4)*10))
+#define SLOT_OMEGA_DE 1
+enum { assress_engine_sel=11,assress_ingame_RTC_open_status=13,assress_ModeB_INIT=15,
+       assress_led_open_sel,assress_Breathing_R,assress_Breathing_G,assress_Breathing_B,
+       assress_SD_R,assress_SD_G,assress_SD_B,assress_toggle_reset,assress_toggle_backup };
+static u16 gl_ingame_RTC_open_status=1,gl_toggle_backup,gl_toggle_reset,gl_engine_sel,gl_ModeB_init=2;
+static u16 gl_led_open_sel,gl_Breathing_R,gl_Breathing_G,gl_Breathing_B,gl_SD_R,gl_SD_G,gl_SD_B;
+static u16 SET_info_buffer[0x200],mock_flash[0x100],mock_led;
+static unsigned flash_writes,rtc_writes;
+static unsigned char mock_rtc[]={0x24,0x01,0x31,0x03,0x14,0x32,0x00};
+static u16 Read_SET_info(unsigned address){return mock_flash[address];}
+static void Launcher_PrepareSettingsFlashWrite(void){}
+static void Save_SET_info(u16 *data,unsigned size){memcpy(mock_flash,data,size);flash_writes++;}
+static void Set_LED_control(u16 value){mock_led=value;}
 static void rtc_enable(void){}
 static void rtc_disenable(void){}
-static void rtc_gettime(unsigned char *time){time[0]=0x14;time[1]=0x32;time[2]=0;}
+static void rtc_get(unsigned char *datetime){memcpy(datetime,mock_rtc,sizeof(mock_rtc));}
+static void rtc_gettime(unsigned char *time){memcpy(time,mock_rtc+4,3);}
+static void rtc_set(unsigned char *datetime)
+{
+    unsigned i;
+    for(i=0;i<sizeof(mock_rtc);i++)mock_rtc[i]=(datetime[i]/10)*16+datetime[i]%10;
+    rtc_writes++;
+}
+static void delay(unsigned ticks){(void)ticks;}
 #include "slot_frontend.h"
 static void mock_carousel_key(void)
 {
@@ -251,6 +272,48 @@ static void config_tests(void)
     CHECK(!Slot_MenuKeysValid(KEY_LEFT|KEY_RIGHT) && !Slot_MenuKeysValid(KEY_UP|KEY_DOWN));
     f_unlink(SLOT_CONFIG);f_unlink(SLOT_CONFIG_BAK);
     slot_theme=2;Slot_ReadConfig();CHECK(slot_theme==2);
+}
+static void cartridge_settings_tests(void)
+{
+    unsigned char datetime[7];
+    Slot_ReadDateTime(datetime);
+    Slot_AdjustDateTime(datetime,SLOT_MONTH,1);
+    CHECK(datetime[SLOT_DAY]==29 && Slot_DateWeekday(datetime)==4); /* 2024-02-29 */
+    Slot_AdjustDateTime(datetime,SLOT_YEAR,1);
+    CHECK(datetime[SLOT_DAY]==28 && Slot_DateWeekday(datetime)==5); /* 2025-02-28 */
+    events(KEY_A,KEY_A,0,KEY_B,0);Slot_ClockMenu();
+    CHECK(!rtc_writes && mock_rtc[1]==0x01);
+    events(KEY_A,0,KEY_DOWN,KEY_A,KEY_B);Slot_ClockMenu();
+    CHECK(rtc_writes==1 && mock_rtc[1]==0x02 && mock_rtc[2]==0x29 && mock_rtc[3]==4);
+    CHECK(!strcmp(slot_time,"14:32"));
+    events(KEY_A,0,KEY_UP,KEY_UP,KEY_UP);
+    mock_keys[5]=KEY_LEFT;mock_keys[6]=KEY_B;Slot_ClockMenu();
+    CHECK(rtc_writes==2 && !strcmp(slot_time,"13:32"));
+    events(0,KEY_RIGHT,KEY_LEFT,KEY_B,0);Slot_ClockMenu();
+    CHECK(rtc_writes==4 && mock_rtc[0]==0x24);
+
+    mock_flash[assress_ModeB_INIT]=0x0102;
+    mock_flash[assress_ingame_RTC_open_status]=1;
+    mock_flash[64]=0x4269;mock_flash[100]=0x7531;
+    events(KEY_A,KEY_A,0,KEY_B,0);Slot_CartridgeSettings();
+    CHECK(!flash_writes && gl_ingame_RTC_open_status==1);
+    events(KEY_A,0,KEY_A,KEY_DOWN,KEY_RIGHT);
+    mock_keys[5]=KEY_DOWN;mock_keys[6]=KEY_RIGHT;mock_keys[7]=KEY_DOWN;mock_keys[8]=KEY_RIGHT;
+    mock_keys[9]=KEY_DOWN;mock_keys[10]=KEY_A;mock_keys[11]=KEY_B;
+    Slot_CartridgeSettings();
+    CHECK(flash_writes==5 && gl_ingame_RTC_open_status==0 && gl_toggle_backup==1);
+    CHECK(gl_toggle_reset==1 && gl_engine_sel==1 && gl_ModeB_init==0);
+    CHECK(mock_flash[assress_ModeB_INIT]==0x0100 && mock_flash[64]==0x4269 && mock_flash[100]==0x7531);
+    events(KEY_A,0,KEY_UP,KEY_A,0);
+    mock_keys[5]=KEY_A;mock_keys[6]=KEY_DOWN;mock_keys[7]=KEY_RIGHT;mock_keys[8]=KEY_B;
+    mock_keys[9]=0;mock_keys[10]=KEY_B;Slot_CartridgeSettings();
+    CHECK(mock_event==11 && flash_writes==7 && gl_led_open_sel==1 && gl_Breathing_B==1 && mock_led==0x88);
+    events(0,KEY_B,0,0,0);Slot_CartridgeSettings();CHECK(flash_writes==7);
+    /* Enter both new pages through the main settings list. */
+    events(KEY_UP,KEY_UP,KEY_UP,KEY_UP,KEY_A);
+    mock_keys[5]=0;mock_keys[6]=KEY_B;mock_keys[7]=KEY_UP;mock_keys[8]=KEY_A;
+    mock_keys[9]=0;mock_keys[10]=KEY_B;mock_keys[11]=0;mock_keys[12]=KEY_B;
+    Slot_SettingsMenu();CHECK(mock_event==13);
 }
 static void image_tests(void)
 {
@@ -319,10 +382,10 @@ static void menu_tests(void)
     events(KEY_DOWN,KEY_A,KEY_B,0,0);Slot_SettingsMenu();
     CHECK(slot_skeuo==0);CHECK(mock_event==3);
     events(KEY_A,KEY_B,0,0,0);Slot_SettingsMenu();CHECK(slot_theme==1);
-    events(KEY_UP,KEY_UP,KEY_UP,KEY_UP,KEY_A);mock_keys[5]=KEY_B;
+    events(KEY_UP,KEY_UP,KEY_UP,KEY_UP,KEY_UP);mock_keys[5]=KEY_UP;mock_keys[6]=KEY_A;mock_keys[7]=KEY_B;
     Slot_SettingsMenu();CHECK(!slot_clock_visible);
     slot_clock_visible=1;Slot_ReadConfig();CHECK(!slot_clock_visible);
-    events(KEY_UP,KEY_UP,KEY_UP,KEY_UP,KEY_A);mock_keys[5]=KEY_B;
+    events(KEY_UP,KEY_UP,KEY_UP,KEY_UP,KEY_UP);mock_keys[5]=KEY_UP;mock_keys[6]=KEY_A;mock_keys[7]=KEY_B;
     Slot_SettingsMenu();CHECK(slot_clock_visible);
     slot_platform=0;slot_count=1;slot_addon=0;
     events(KEY_RIGHT,KEY_B,0,0,0);Slot_CartBack();CHECK(slot_addon==1);
@@ -548,7 +611,7 @@ __declspec(dllexport) int main(int argc,char **argv)
     memory=VirtualAlloc((void*)SLOT_CACHE_BASE,0x30000,MEM_COMMIT|MEM_RESERVE,PAGE_READWRITE);
     if(memory!=(void*)SLOT_CACHE_BASE){printf("Cannot map mock PSRAM\n");return 2;}
     slot_frame=(uint16_t*)pReadCache;f_mkdir("/SYSTEM");f_mkdir(SLOT_DIR);
-    config_tests();image_tests();scan_tests();username_tests();menu_tests();refinement_tests();draw_cache_tests();streaming_tests();eject_tests();carousel_loop_tests();
+    config_tests();cartridge_settings_tests();image_tests();scan_tests();username_tests();menu_tests();refinement_tests();draw_cache_tests();streaming_tests();eject_tests();carousel_loop_tests();
     printf("Frontend host integration: %u checks, %u failed\n",checks,failed);
     VirtualFree(memory,0,MEM_RELEASE);return failed?1:0;
 }

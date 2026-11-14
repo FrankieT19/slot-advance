@@ -48,6 +48,7 @@ extern u16 gl_reset_on;
 extern u16 gl_rts_on;
 extern u16 gl_sleep_on;
 extern u16 gl_cheat_on;
+extern u16 gl_engine_sel;
 
 extern u16 gl_color_selected;
 extern u16 gl_color_text;

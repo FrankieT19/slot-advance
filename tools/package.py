@@ -29,6 +29,9 @@ CONTROLS
 Left/Right: choose game. L/R: change system. A: play. Start: settings.
 Open Settings > Help for all controls and GBA Addon shortcuts.
 Set Show clock to Off in Settings to hide the footer clock.
+Use Settings > Set date and time to set the cartridge clock.
+Cartridge settings includes in-game RTC, save backups, boot intro and patch
+engine. Omega DE also has Mode B and LED settings.
 By default, hold Select for 3 seconds to return and eject from GBA Addon and
 GB/GBC games. Start+Select opens the in-game menu. Change both shortcuts in
 Settings > In-game hotkeys.

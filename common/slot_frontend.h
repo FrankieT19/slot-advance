@@ -7,6 +7,7 @@
 #include "slot_timing.h"
 #include "slot_transition.h"
 #include "slot_return_io.h"
+#include "slot_clock.h"
 #define SLOT_DIR "/SYSTEM/SLOT"
 #define SLOT_CONFIG SLOT_DIR "/SETTINGS.TXT"
 #define SLOT_CONFIG_TMP SLOT_DIR "/SETTINGS.TMP"
@@ -418,6 +419,7 @@ static void Slot_Play(void)
     SetMode(MODE_3|BG2_ENABLE); Slot_Scan();
 }
 static unsigned Slot_RefreshClock(void);
+#include "slot_cartridge_settings.h"
 static void Slot_CartBack(void)
 {
     unsigned dirty=1;
@@ -486,7 +488,7 @@ static void Slot_HotkeysMenu(void)
 }
 static void Slot_SettingsMenu(void)
 {
-    static const char *const labels[]={"Appearance","Skeuomorphic","Animation","Wrap carousel","UI sounds","Boot mode","Hold to return","Save states","Sleep patch","Remember shelf","Show clock","In-game hotkeys","Help","About"};
+    static const char *const labels[]={"Appearance","Skeuomorphic","Animation","Wrap carousel","UI sounds","Boot mode","Hold to return","Save states","Sleep patch","Remember shelf","Show clock","Set date and time","Cartridge settings","In-game hotkeys","Help","About"};
     enum { total=sizeof(labels)/sizeof(*labels) };
     const char *values[total];unsigned selected=0,dirty=1;
     Slot_ClearNav();
@@ -497,7 +499,8 @@ static void Slot_SettingsMenu(void)
             values[1]=slot_skeuo?"On":"Off";values[2]=slot_animations?"On":"Off";values[3]=slot_wrap?"On":"Off";
             values[4]=launcher_sounds_enabled?"On":"Off";values[5]=slot_addon?"Addons":"Clean";
             values[6]=gl_reset_on?"On":"Off";values[7]=gl_rts_on?"On":"Off";values[8]=gl_sleep_on?"On":"Off";
-            values[9]=slot_remember?"On":"Off";values[10]=slot_clock_visible?"On":"Off";values[11]=">";values[12]="";values[13]="";
+            values[9]=slot_remember?"On":"Off";values[10]=slot_clock_visible?"On":"Off";
+            values[11]=">";values[12]=">";values[13]=">";values[14]="";values[15]="";
             Slot_Settings(labels,values,total,selected);Slot_Present();dirty=0;
         }
         VBlankIntrWait();UIAudio_Update();scanKeys();down=keysDown();repeat=keysDownRepeat()|down;
@@ -509,7 +512,8 @@ static void Slot_SettingsMenu(void)
         if(repeat&KEY_UP){selected=selected?selected-1:total-1;dirty=1;}
         if(repeat&KEY_DOWN){selected=(selected+1)%total;dirty=1;}
         if(down&(KEY_A|KEY_LEFT|KEY_RIGHT)) {
-            slot_config_dirty=1;dirty=1;
+            if(selected<=10)slot_config_dirty=1;
+            dirty=1;
             switch(selected) {
                 case 0:slot_theme=(slot_theme+(down&KEY_LEFT?2:1))%3;break;
                 case 1:slot_skeuo^=1;break;case 2:slot_animations^=1;break;case 3:slot_wrap^=1;break;
@@ -517,9 +521,11 @@ static void Slot_SettingsMenu(void)
                 case 6:gl_reset_on^=1;break;case 7:gl_rts_on^=1;break;case 8:gl_sleep_on^=1;break;
                 case 9:slot_remember^=1;break;
                 case 10:slot_clock_visible^=1;break;
-                case 11:Slot_HotkeysMenu();break;
-                case 12:Slot_ShowHelp();break;
-                case 13:Slot_ShowAbout();break;
+                case 11:if(down&KEY_A)Slot_ClockMenu();break;
+                case 12:if(down&KEY_A)Slot_CartridgeSettings();break;
+                case 13:Slot_HotkeysMenu();break;
+                case 14:Slot_ShowHelp();break;
+                case 15:Slot_ShowAbout();break;
             }
         }
     }

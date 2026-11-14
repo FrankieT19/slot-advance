@@ -6,12 +6,12 @@ Cartridge carousels for GBA, GB and GBC, with label artwork, cartridge colours, 
 
 ## Install
 
-Download **v1.2.3** for your cartridge.
+Download **v1.2.4** for your cartridge.
 
 | Cartridge | Download |
 | --- | --- |
-| Original Omega | [Download](https://github.com/FrankieT19/slot-advance/releases/download/v1.2.3/slot-advance-v1.2.3-omega.zip) |
-| Original Omega DE, Rev A / Rev B | [Download](https://github.com/FrankieT19/slot-advance/releases/download/v1.2.3/slot-advance-v1.2.3-omega-de.zip) |
+| Original Omega | [Download](https://github.com/FrankieT19/slot-advance/releases/download/v1.2.4/slot-advance-v1.2.4-omega.zip) |
+| Original Omega DE, Rev A / Rev B | [Download](https://github.com/FrankieT19/slot-advance/releases/download/v1.2.4/slot-advance-v1.2.4-omega-de.zip) |
 
 The newer DE B / EZODE-B is not supported.
 
@@ -52,6 +52,10 @@ In **GBA Addon, GB and GBC games**, **Start + Select** opens the in-game menu by
 GBA Addon, GB and GBC games fade through black on return. GB/GBC games run without SGB borders, and **Exit** in the emulator menu also returns and ejects the cartridge.
 
 To hide the footer clock, set **Settings → Show clock** to **Off**.
+
+Use **Settings → Set date and time** to set the cartridge clock.
+
+**Settings → Cartridge settings** includes in-game RTC, save backups, the GBA boot intro, and the patch engine. Omega DE also has Mode B and LED settings. Use **A** to open a submenu, **A** or **Left / Right** to change a value, and **B** to go back. Changes save immediately.
 
 ## Showcase
 

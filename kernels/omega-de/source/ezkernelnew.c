@@ -13791,6 +13791,7 @@ static u32 Get_path_depth(const TCHAR *path)
 //---------------------------------------------------------------------------------
 #include "system_browser.h"
 
+#define SLOT_OMEGA_DE 1
 #include "slot_frontend.h"
 
 int main(void) {

@@ -1,3 +1,8 @@
+# v1.2.4
+
+- Restored EZ-FLASH cartridge settings for in-game RTC, save backups, the GBA boot intro and the patch engine, plus Mode B and LED controls on Omega DE.
+- Added **Set date and time**. Clock and cartridge changes save as you make them.
+
 # v1.2.3
 
 - Added **Settings → In-game hotkeys** to change the hold-to-return button and the two-button menu shortcut for GBA Addon, GB and GBC games. Defaults are **Select** and **Start + Select**.
